@@ -34,17 +34,24 @@ extern "C" {
 /* USER CODE BEGIN Includes */
 
 #define NODE
-#include "uartNode.h"
-#include "sx127x.h"
-#include "otisProtocol.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+
+#include <otisProtocol.h>
+#include "common.h"
+#include "uartNode.h"
+#include "sx127x.h"
+
+
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
+#define VREF_CAL_VALUE  (*(uint16_t*) 0x1FF80078)
+
 #define FLASH_EEPROM_BASE 0x8080000
 #define MAX_RETRIES 7
 
@@ -89,7 +96,8 @@ void Error_Handler(void);
 void deinitPorts();
 void deinitAlarmInput ();
 void deinitPowerInput ();
-void policeSiren (int arg,int delay);
+void sleep(uint32_t delay);
+
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/

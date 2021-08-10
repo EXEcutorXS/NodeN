@@ -1,20 +1,25 @@
 #include "main.h"
+
 extern flag_t flag;
-extern nodeSettings_t settings;
-extern UART_HandleTypeDef huart1;
-extern SX127X_t myRadio;
-extern uint8_t uartIn;
-extern uint8_t configCrc;
-extern uint8_t receivedCrc;
 extern uint32_t version;
-extern int8_t calibratedTemp;
+
+SX127X_t* myRadio;
+
 uint8_t uartRx[32];
-uint8_t uartIn;
 uint8_t uartPos;
+uint8_t uartIn;
 uint8_t len;
 
-void readByte ()
+
+void initUart(UART_HandleTypeDef* huart, DMA_HandleTypeDef* hdma, SX127X_t* myRadioHandler)
 {
+	HAL_UART_Receive_DMA(huart, &uartIn, 1);
+	hdma->XferCpltCallback = readByte;
+}
+
+void readByte (UART_HandleTypeDef* huart)
+{
+	// TODO change uartIn to *(huart->pRxBuffPtr);
 	if (uartIn == '<')
 		uartPos = 0;
 	else if (uartIn == '>')
@@ -26,7 +31,7 @@ void readByte ()
 		uartRx[uartPos++] = uartIn;
 }
 
-void uartReceiveHandler ()
+void uartReceiveHandler (nodeSettings_t* settingsPtr)
 {
 
 	uint8_t l = len - 1;
@@ -37,49 +42,49 @@ void uartReceiveHandler ()
 	{
 		case UART_FREQUENCY:
 			tmp = DecToInt (ptr, l);
-			settings.realFrequency = tmp;
+			settingsPtr->realFrequency = tmp;
 			break;
 
 		case UART_SF:
 			tmp = DecToInt (ptr, l);
-			settings.sf = tmp;
+			settingsPtr->sf = tmp;
 			break;
 
 		case UART_BW:
 			tmp = DecToInt (ptr, l);
-			settings.bw = tmp;
+			settingsPtr->bw = tmp;
 			break;
 
 		case UART_SYNCWORD:
 			tmp = HexToInt (ptr, l);
-			settings.sw = tmp;
+			settingsPtr->sw = tmp;
 			break;
 
 		case UART_PREAMBLE:
 			tmp = DecToInt (ptr, l);
-			settings.preamble = tmp;
+			settingsPtr->preamble = tmp;
 			break;
 
 		case UART_CR:
 			tmp = DecToInt (ptr, l);
-			settings.cr = tmp;
+			settingsPtr->cr = tmp;
 			break;
 
 		case UART_POWER:
 			tmp = DecToInt (ptr, l);
-			settings.power = tmp;
+			settingsPtr->power = tmp;
 			break;
 
 		case UART_NODENUM:
-			settings.nodeNum = DecToInt (ptr, l);
+			settingsPtr->nodeNum = DecToInt (ptr, l);
 			break;
 
 		case UART_WORKING_INTERVAL:
-			settings.workInterval = DecToInt (ptr, l);
+			settingsPtr->workInterval = DecToInt (ptr, l);
 			break;
 
 		case UART_USELED:
-			settings.useLed = DecToInt (ptr, l);
+			settingsPtr->useLed = DecToInt (ptr, l);
 			break;
 
 		case UART_SAVE:
@@ -107,18 +112,17 @@ void uartReceiveHandler ()
 
 }
 
-void sendConfig (void)
+void sendConfig (nodeSettings_t* settingsPtr)
 {
-	printf ("<1%lu>", settings.realFrequency);
-	printf ("<2%u>", settings.sf);
-	printf ("<3%u>", settings.bw);
-	printf ("<4%X>", settings.sw);
-	printf ("<5%u>", settings.power);
-	printf ("<8%u>", myRadio.preamble);
-	printf ("<9%u>", settings.cr);
-	printf ("<n%u>", settings.nodeNum);
-	printf ("<i%lu>", settings.workInterval);
-	printf ("<L%u>\n", settings.useLed);
-
+	printf ("<1%lu>", settingsPtr->realFrequency);
+	printf ("<2%u>", settingsPtr->sf);
+	printf ("<3%u>", settingsPtr->bw);
+	printf ("<4%X>", settingsPtr->sw);
+	printf ("<5%u>", settingsPtr->power);
+	printf ("<8%u>", settingsPtr->preamble);
+	printf ("<9%u>", settingsPtr->cr);
+	printf ("<n%u>", settingsPtr->nodeNum);
+	printf ("<i%lu>", settingsPtr->workInterval);
+	printf ("<L%u>\n", settingsPtr->useLed);
 }
 

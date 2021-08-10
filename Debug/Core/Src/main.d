@@ -33,8 +33,9 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
  ../Drivers/STM32L0xx_HAL_Driver/Inc/stm32l0xx_hal_spi.h \
  ../Drivers/STM32L0xx_HAL_Driver/Inc/stm32l0xx_hal_uart.h \
  ../Drivers/STM32L0xx_HAL_Driver/Inc/stm32l0xx_hal_uart_ex.h \
- ../Core/Inc/uartNode.h ../Core/Inc/main.h C:/workspace/sx127x/sx127x.h \
- C:/workspace/otisProtocol/otisProtocol.h
+ ../Drivers/STM32L0xx_HAL_Driver/Inc/stm32l0xx_hal_wwdg.h \
+ C:/workspace/otisProtocol/otisProtocol.h C:/workspace/common/common.h \
+ ../Core/Inc/uartNode.h C:/workspace/sx127x/sx127x.h
 
 ../Core/Inc/main.h:
 
@@ -106,10 +107,12 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
 
 ../Drivers/STM32L0xx_HAL_Driver/Inc/stm32l0xx_hal_uart_ex.h:
 
-../Core/Inc/uartNode.h:
-
-../Core/Inc/main.h:
-
-C:/workspace/sx127x/sx127x.h:
+../Drivers/STM32L0xx_HAL_Driver/Inc/stm32l0xx_hal_wwdg.h:
 
 C:/workspace/otisProtocol/otisProtocol.h:
+
+C:/workspace/common/common.h:
+
+../Core/Inc/uartNode.h:
+
+C:/workspace/sx127x/sx127x.h:
