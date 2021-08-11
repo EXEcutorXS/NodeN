@@ -97,7 +97,7 @@ void deinitPorts();
 void deinitAlarmInput ();
 void deinitPowerInput ();
 void sleep(uint32_t delay);
-
+void initUart(UART_HandleTypeDef* huart, DMA_HandleTypeDef* hdma, SX127X_t* myRadioHandler);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/

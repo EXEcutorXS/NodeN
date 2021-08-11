@@ -7,28 +7,26 @@ SX127X_t* myRadio;
 
 uint8_t uartRx[32];
 uint8_t uartPos;
-uint8_t uartIn;
 uint8_t len;
-
+uint8_t data;
 
 void initUart(UART_HandleTypeDef* huart, DMA_HandleTypeDef* hdma, SX127X_t* myRadioHandler)
 {
-	HAL_UART_Receive_DMA(huart, &uartIn, 1);
+	HAL_UART_Receive_DMA(huart, &data, 1);
 	hdma->XferCpltCallback = readByte;
 }
 
 void readByte (UART_HandleTypeDef* huart)
 {
-	// TODO change uartIn to *(huart->pRxBuffPtr);
-	if (uartIn == '<')
+	if (data == '<')
 		uartPos = 0;
-	else if (uartIn == '>')
+	else if (data == '>')
 		{
 			len = uartPos;
 			flag.uartRx = 1;
 		}
 	else
-		uartRx[uartPos++] = uartIn;
+		uartRx[uartPos++] = data;
 }
 
 void uartReceiveHandler (nodeSettings_t* settingsPtr)

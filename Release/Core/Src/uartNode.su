@@ -1,3 +1,4 @@
-uartNode.c:16:6:readByte	0	static
-uartNode.c:29:6:uartReceiveHandler	8	static
-uartNode.c:110:6:sendConfig	8	static
+uartNode.c:20:6:readByte	0	static
+uartNode.c:14:6:initUart	8	static
+uartNode.c:34:6:uartReceiveHandler	8	static
+uartNode.c:115:6:sendConfig	8	static
