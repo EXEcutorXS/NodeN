@@ -1,7 +1,6 @@
 #include "main.h"
 
 extern flag_t flag;
-extern uint32_t version;
 
 SX127X_t* myRadio;
 
@@ -94,7 +93,7 @@ void uartReceiveHandler (nodeSettings_t* settingsPtr)
 			break;
 
 		case UART_CALL:
-			printf ("<ANv%lx>", version);
+			printf ("<ANv%lx>", SOFTWARE_REVISION);
 			break;
 
 		case UART_STATUS:

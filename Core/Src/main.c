@@ -31,7 +31,6 @@
 const char *statuses[] = { "UNINITIALISED", "SLEEP", "STANDBY", "TX", "RX" };
 #endif
 
-const uint32_t version = 0x10082021;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -484,20 +483,20 @@ void PingTest() {
 void ledRoutine(SX127X_t *module, nodeSettings_t *settingsPtr) {
 	static uint32_t lastBlink = 0;
 	if (module->signalDetected && settingsPtr->useLed)
-		HAL_GPIO_WritePin(ORANGE_GPIO_Port, ORANGE_Pin, 1);
+		HAL_GPIO_WritePin(ORANGE_GPIO_Port, ORANGE_Pin, LED_ON);
 	else
-		HAL_GPIO_WritePin(ORANGE_GPIO_Port, ORANGE_Pin, 0);
+		HAL_GPIO_WritePin(ORANGE_GPIO_Port, ORANGE_Pin, LED_OFF);
 
 	if (module->status == TX && settingsPtr->useLed)
-		HAL_GPIO_WritePin(BLUE_GPIO_Port, BLUE_Pin, 1);
+		HAL_GPIO_WritePin(BLUE_GPIO_Port, BLUE_Pin, LED_ON);
 	else
-		HAL_GPIO_WritePin(BLUE_GPIO_Port, BLUE_Pin, 0);
+		HAL_GPIO_WritePin(BLUE_GPIO_Port, BLUE_Pin, LED_OFF);
 
 	if (HAL_GetTick() - lastBlink > 5000) {
 		lastBlink = HAL_GetTick();
 	}
 	if (HAL_GetTick() - lastBlink < 50 && settingsPtr->useLed) {
-		HAL_GPIO_WritePin(BLUE_GPIO_Port, ORANGE_Pin | BLUE_Pin, 1);
+		HAL_GPIO_WritePin(BLUE_GPIO_Port, ORANGE_Pin | BLUE_Pin, LED_ON);
 	}
 
 }
@@ -588,10 +587,20 @@ int main(void)
   MX_LPTIM1_Init();
   MX_WWDG_Init();
   /* USER CODE BEGIN 2 */
+
+  //Hardware Revesion correction
+
+#if HARDWARE_REVISION == 1
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+  GPIO_InitStruct.Pin = extPower_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+#endif
 	initUart(&huart1, &hdma_usart1_rx, &myRadio);
 	recomendedDelay=settings.workInterval;
 	HAL_LPTIM_Counter_Start_IT(&hlptim1, 256 * WATCHDOG_INTERVAL);
-	printf("<ANv%lx>\n", version);
+	printf("<ANv%lx>\n", SOFTWARE_REVISION);
 	DBGMCU->APB1FZ |= DBGMCU_APB1_FZ_DBG_IWDG_STOP_Msk
 			| DBGMCU_APB1_FZ_DBG_WWDG_STOP_Msk;
 
@@ -606,7 +615,7 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-
+#if HARDWARE_REVISION > 1
 	// PIN MAP: 0-1
 	//Receiving test
 	if (HAL_GPIO_ReadPin(USER2_GPIO_Port, USER2_Pin) == 0
@@ -624,7 +633,7 @@ int main(void)
 	if (HAL_GPIO_ReadPin(USER1_GPIO_Port, USER1_Pin) == 0
 			&& HAL_GPIO_ReadPin(USER2_GPIO_Port, USER2_Pin) == 0)
 		dontSleep = true;
-
+#endif
 	deinitGpio();
 
 	while (1) {

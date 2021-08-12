@@ -33,8 +33,9 @@ extern "C" {
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
-#define NODE
 
+#define HARDWARE_REVISION 1
+#define SOFTWARE_REVISION 0x12082021LU
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -63,6 +64,9 @@ extern "C" {
 #define HOME_TEMP 298.15F
 
 #define WATCHDOG_INTERVAL 200
+
+#define LED_ON 1
+#define LED_OFF 0
 typedef struct
 {
 uint32_t rtcAlarm:1;
@@ -125,6 +129,23 @@ void initUart(UART_HandleTypeDef* huart, DMA_HandleTypeDef* hdma, SX127X_t* myRa
 #define USER2_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
 
+#if HARDWARE_REVISION == 1
+#undef extPower_Pin
+#undef extPower_GPIO_Port
+#undef extPower_EXTI_IRQn
+#undef LED_ON
+#undef LED_OFF
+#undef BLUE_Pin
+#undef ORANGE_Pin
+
+#define extPower_Pin GPIO_PIN_9
+#define extPower_GPIO_Port GPIOB
+#define extPower_EXTI_IRQn EXTI4_15_IRQn
+#define LED_ON 0
+#define LED_OFF 1
+#define BLUE_Pin GPIO_PIN_13
+#define ORANGE_Pin GPIO_PIN_12
+#endif
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus
