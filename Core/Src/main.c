@@ -58,22 +58,25 @@ DMA_HandleTypeDef hdma_usart1_rx;
 WWDG_HandleTypeDef hwwdg;
 
 /* USER CODE BEGIN PV */
-flag_t flag={0,};
-uint8_t lpTimWdCnt=0;
+flag_t flag = { 0, };
+uint8_t lpTimWdCnt = 0;
 
 SX127X_t myRadio;
+
+uint16_t recomendedDelay = 600;
+uint32_t *workInterval;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
-void SystemClock_Config(void);
-static void MX_GPIO_Init(void);
-static void MX_DMA_Init(void);
-static void MX_RTC_Init(void);
-static void MX_SPI1_Init(void);
-static void MX_USART1_UART_Init(void);
-static void MX_ADC_Init(void);
-static void MX_LPTIM1_Init(void);
-static void MX_WWDG_Init(void);
+void SystemClock_Config (void);
+static void MX_GPIO_Init (void);
+static void MX_DMA_Init (void);
+static void MX_RTC_Init (void);
+static void MX_SPI1_Init (void);
+static void MX_USART1_UART_Init (void);
+static void MX_ADC_Init (void);
+static void MX_LPTIM1_Init (void);
+static void MX_WWDG_Init (void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -81,32 +84,51 @@ static void MX_WWDG_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-int _write(int fd, char *ptr, int len) {
-	HAL_UART_Transmit(&huart1, (uint8_t*) ptr, len, 1000L);
+int _write (int fd, char *ptr, int len)
+{
+	HAL_UART_Transmit (&huart1, (uint8_t*) ptr, len, 1000L);
 	return len;
 }
 
-int __io_putchar(int ch) {
-	HAL_UART_Transmit(&huart1, (uint8_t*) &ch, 1, 1000);
+int __io_putchar (int ch)
+{
+	HAL_UART_Transmit (&huart1, (uint8_t*) &ch, 1, 1000);
 	return ch;
 }
 
-void debugLogTime(char *string) {
+void debugLogTime (char *string)
+{
 #ifdef DEBUG
 	uint32_t time = RTC->TR;
-	printf("%08lu", HAL_GetTick());
-	printf(" %02x:%02x:%02x ", (uint16_t) (time >> 16) & 0xFF,
-			(uint16_t) (time >> 8) & 0xFF, (uint16_t) time & 0xFF);
-	printf(string);
-	printf("\n");
+	printf ("\n");
+	printf ("%08lu", HAL_GetTick ());
+	printf (" %02x:%02x:%02x ", (uint16_t) (time >> 16) & 0xFF, (uint16_t) (time >> 8) & 0xFF, (uint16_t) time & 0xFF);
+	printf (string);
+	printf ("\n");
 #endif
 }
 
-void debugLog(char *string, ...) {
+void debugLog (char *string)
+{
 #ifdef DEBUG
-	printf("                  ");
-	printf(string);
-	printf("\n");
+	printf (string);
+	printf ("\n");
+#endif
+}
+
+void debugLogInt (char *format, int n)
+{
+#ifdef DEBUG
+	printf (format, n);
+	printf ("\n");
+#endif
+}
+
+void debugLogString (char *format, char *string)
+{
+#ifdef DEBUG
+	printf (format, string);
+	printf ("\n");
 #endif
 }
 
@@ -116,12 +138,13 @@ void debugLog(char *string, ...) {
  * @param None
  * @retval  Volage
  */
-float getVoltage() {
+float getVoltage ()
+{
 	uint16_t adc[2];
-	HAL_ADC_Start_DMA(&hadc, (uint32_t*) adc, 2);
-	HAL_Delay(5);
-	HAL_ADC_Start_DMA(&hadc, (uint32_t*) adc, 2);
-	HAL_Delay(2);
+	HAL_ADC_Start_DMA (&hadc, (uint32_t*) adc, 2);
+	HAL_Delay (5);
+	HAL_ADC_Start_DMA (&hadc, (uint32_t*) adc, 2);
+	HAL_Delay (2);
 	return 3.0f * (float) VREF_CAL_VALUE / (float) adc[1];
 }
 
@@ -131,40 +154,46 @@ float getVoltage() {
  * @param None
  * @retval  Temperature in Celsius
  */
-float getTemperature() {
+float getTemperature ()
+{
 	uint16_t adc;
 	float Rt = 0;
 	float tKelvin = 0;
 	float tCelsius = 0;
 #ifdef USE_NTC
-	HAL_GPIO_WritePin(TempPower_GPIO_Port, TempPower_Pin, 1);
-	HAL_ADC_Start_DMA(&hadc, (uint32_t*) &adc, 1);
-	HAL_Delay(5);
-	HAL_ADC_Start_DMA(&hadc, (uint32_t*) &adc, 1);
-	HAL_Delay(2);
+	HAL_GPIO_WritePin (TempPower_GPIO_Port, TempPower_Pin, 1);
+	HAL_ADC_Start_DMA (&hadc, (uint32_t*) &adc, 1);
+	HAL_Delay (5);
+	HAL_ADC_Start_DMA (&hadc, (uint32_t*) &adc, 1);
+	HAL_Delay (2);
 	Rt = R_BALANCE * (4096.0 / (float) adc - 1.0F);
-	tKelvin = (BETA * HOME_TEMP)
-			/ (BETA + (HOME_TEMP * log(Rt / R_THERMISTOR_DEFAULT)));
+	tKelvin = (BETA * HOME_TEMP) / (BETA + (HOME_TEMP * log (Rt / R_THERMISTOR_DEFAULT)));
 
 	tCelsius = tKelvin - 273.15;
-	HAL_GPIO_WritePin(TempPower_GPIO_Port, TempPower_Pin, 0);
+	HAL_GPIO_WritePin (TempPower_GPIO_Port, TempPower_Pin, 0);
 #endif
 	return tCelsius;
 }
 
-void HAL_RTCEx_WakeUpTimerEventCallback(RTC_HandleTypeDef *hrtc) {
-	debugLogTime("RTC Interrupt");
+void HAL_RTCEx_WakeUpTimerEventCallback (RTC_HandleTypeDef *hrtc)
+{
+	debugLogTime ("RTC Interrupt");
 	lpTimWdCnt = 0;
 	flag.rtcAlarm = 1;
 }
 
-void HAL_LPTIM_AutoReloadMatchCallback(LPTIM_HandleTypeDef *hlptim) {
-	lpTimWdCnt++;
-	if (lpTimWdCnt > 4) {
-		debugLogTime("LP WatchDog activated!");
-		SCB->AIRCR |= SCB_AIRCR_SYSRESETREQ_Msk;
-	} else
-		debugLogTime("LP Interrupt");
+void HAL_LPTIM_AutoReloadMatchCallback (LPTIM_HandleTypeDef *hlptim)
+{
+	if (lpTimWdCnt > (*workInterval * 2) / WATCHDOG_INTERVAL)
+		{
+			debugLogTime ("###LP WatchDog activated! Reset MCU!");
+			SCB->AIRCR |= SCB_AIRCR_SYSRESETREQ_Msk;
+		}
+	else
+		{
+		debugLogTime ("LP Interrupt");
+		debugLogInt("LP Watchdog cnt is %d", ++lpTimWdCnt);
+		}
 }
 
 /**
@@ -172,7 +201,8 @@ void HAL_LPTIM_AutoReloadMatchCallback(LPTIM_HandleTypeDef *hlptim) {
  * @param None
  * @retval  None
  */
-void initiateSettings(nodeSettings_t *settingsPtr) {
+void initiateSettings (nodeSettings_t *settingsPtr)
+{
 	myRadio.sf = settingsPtr->sf;
 	myRadio.bw = settingsPtr->bw;
 	myRadio.cr = settingsPtr->cr;
@@ -187,7 +217,8 @@ void initiateSettings(nodeSettings_t *settingsPtr) {
  * @param None
  * @retval None
  */
-void defaultSettings(nodeSettings_t *settingsPtr) {
+void defaultSettings (nodeSettings_t *settingsPtr)
+{
 	settingsPtr->nodeNum = 0;
 	settingsPtr->workInterval = 600;
 	settingsPtr->voltageTreshold = 2.0f;
@@ -199,7 +230,7 @@ void defaultSettings(nodeSettings_t *settingsPtr) {
 	settingsPtr->realFrequency = DEF_FREQUENCY;
 	settingsPtr->preamble = 5;
 	settingsPtr->useLed = true;
-	initiateSettings(settingsPtr);
+	initiateSettings (settingsPtr);
 }
 
 /**
@@ -208,26 +239,20 @@ void defaultSettings(nodeSettings_t *settingsPtr) {
  * @param None
  * @retval HAL status
  */
-HAL_StatusTypeDef tryEeprom(nodeSettings_t *settingsPtr) {
+HAL_StatusTypeDef tryEeprom (nodeSettings_t *settingsPtr)
+{
 	nodeSettings_t *eepromSettings = (nodeSettings_t*) FLASH_EEPROM_BASE;
-	if (eepromSettings->realFrequency > MIN_FREQUENCY
-			&& eepromSettings->realFrequency < MAX_FREQUENCY
-			&& eepromSettings->bw < 10 && eepromSettings->cr < 5
-			&& eepromSettings->cr > 0 && eepromSettings->sf > 6
-			&& eepromSettings->sf < 13 && eepromSettings->power > 9
-			&& eepromSettings->power < 21 && eepromSettings->sw != 0x34
-			&& eepromSettings->voltageTreshold >= 1.7f
-			&& eepromSettings->voltageTreshold <= 3.0f
-			&& eepromSettings->workInterval >= MIN_WORK_INTERVAL
-			&& eepromSettings->workInterval <= MAX_WORK_INTERVAL
-			&& eepromSettings->preamble > 1
-			&& eepromSettings->voltageTreshold >= 1.8f
-			&& eepromSettings->voltageTreshold <= 3.1f) {
-		memcpy((uint8_t*) settingsPtr, (uint8_t*) eepromSettings,
-				sizeof(*settingsPtr));
-		initiateSettings(settingsPtr);
-		return HAL_OK;
-	}
+	if (eepromSettings->realFrequency > MIN_FREQUENCY && eepromSettings->realFrequency < MAX_FREQUENCY && eepromSettings->bw < 10
+			&& eepromSettings->cr < 5 && eepromSettings->cr > 0 && eepromSettings->sf > 6 && eepromSettings->sf < 13 && eepromSettings->power > 9
+			&& eepromSettings->power < 21 && eepromSettings->sw != 0x34 && eepromSettings->voltageTreshold >= 1.7f
+			&& eepromSettings->voltageTreshold <= 3.0f && eepromSettings->workInterval >= MIN_WORK_INTERVAL
+			&& eepromSettings->workInterval <= MAX_WORK_INTERVAL && eepromSettings->preamble > 1 && eepromSettings->voltageTreshold >= 1.8f
+			&& eepromSettings->voltageTreshold <= 3.1f)
+		{
+			memcpy ((uint8_t*) settingsPtr, (uint8_t*) eepromSettings, sizeof(*settingsPtr));
+			initiateSettings (settingsPtr);
+			return HAL_OK;
+		}
 	return HAL_ERROR;
 }
 
@@ -237,16 +262,24 @@ HAL_StatusTypeDef tryEeprom(nodeSettings_t *settingsPtr) {
  * @param None
  * @retval None
  */
-void saveSettings(nodeSettings_t *settingsPtr) {
+void saveSettings (nodeSettings_t *settingsPtr)
+{
 	uint8_t i;
 	uint32_t *ptr = (uint32_t*) settingsPtr;
-	HAL_FLASHEx_DATAEEPROM_Unlock();
+	HAL_FLASHEx_DATAEEPROM_Unlock ();
 	for (i = 0; i < (sizeof(*settingsPtr) + 3) / 4; i++)
-		HAL_FLASHEx_DATAEEPROM_Program(FLASH_TYPEPROGRAMDATA_WORD,
-		FLASH_EEPROM_BASE + i * 4, *ptr++);
-	HAL_FLASHEx_DATAEEPROM_Lock();
+		HAL_FLASHEx_DATAEEPROM_Program (FLASH_TYPEPROGRAMDATA_WORD,
+		FLASH_EEPROM_BASE + i * 4,
+																		*ptr++);
+	HAL_FLASHEx_DATAEEPROM_Lock ();
 }
 
+void setWakeup (uint16_t delay)
+{
+	HAL_RTCEx_SetWakeUpTimer_IT (&hrtc, recomendedDelay,
+	RTC_WAKEUPCLOCK_CK_SPRE_16BITS);
+	debugLogInt ("Setting WakeUp timer to %d seconds", delay);
+}
 /**
  * @brief Turns Node into Sleep Mode
  * Set RTC  Wake up timer
@@ -255,14 +288,13 @@ void saveSettings(nodeSettings_t *settingsPtr) {
  * @param None
  * @retval None
  */
-void sleep(uint32_t delay) {
-	HAL_GPIO_WritePin(BLUE_GPIO_Port, BLUE_Pin | ORANGE_Pin, 0);
-	SX127X_sleep(&myRadio);
-
-	HAL_RTCEx_SetWakeUpTimer_IT(&hrtc, delay, RTC_WAKEUPCLOCK_CK_SPRE_16BITS);
-	HAL_DBGMCU_DisableDBGStopMode();
+void sleep ()
+{
+	HAL_GPIO_WritePin (BLUE_GPIO_Port, BLUE_Pin | ORANGE_Pin, LED_OFF);
+	SX127X_sleep (&myRadio);
+	HAL_DBGMCU_DisableDBGStopMode ();
 	__HAL_PWR_CLEAR_FLAG(PWR_FLAG_WU);
-	HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
+	HAL_PWR_EnterSTOPMode (PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
 
 }
 
@@ -271,7 +303,8 @@ void sleep(uint32_t delay) {
  * @param None
  * @retval None
  */
-void sendStatus(nodeStatus_t *status, nodeSettings_t *settingsPtr) {
+void sendStatus (nodeStatus_t *status, nodeSettings_t *settingsPtr)
+{
 	uplinkMessage_t *txMes = (uplinkMessage_t*) myRadio.txBuf;
 	txMes->adr = settingsPtr->nodeNum;
 	txMes->uplink = 1;
@@ -279,11 +312,11 @@ void sendStatus(nodeStatus_t *status, nodeSettings_t *settingsPtr) {
 	txMes->message = MSG_UP_ACKNOWLEDGE;
 	txMes->opened = status->opened || status->unconfirmedOpening;
 	txMes->powered = status->powered;
-	txMes->codedTemperature = getTemperature() * 2.0F + 80;
-	txMes->codedVoltage = ((int) (getVoltage() * 10)) - 19;
+	txMes->codedTemperature = getTemperature () * 2.0F + 80;
+	txMes->codedVoltage = ((int) (getVoltage () * 10)) - 19;
 	status->openedToConfirm = status->opened || status->unconfirmedOpening;
 	status->poweredToConfirm = status->powered;
-	SX127X_transmitAsync(&myRadio, sizeof(uplinkMessage_t));
+	SX127X_transmitAsync (&myRadio, sizeof(uplinkMessage_t));
 
 }
 
@@ -292,13 +325,14 @@ void sendStatus(nodeStatus_t *status, nodeSettings_t *settingsPtr) {
  * @param None
  * @retval None
  */
-void deinitGpio() {
+void deinitGpio ()
+{
 	GPIO_InitTypeDef GPIO_InitStruct = { 0 };
 
 	GPIO_InitStruct.Pin = USER1_Pin | USER2_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	HAL_GPIO_Init(USER1_GPIO_Port, &GPIO_InitStruct);
+	HAL_GPIO_Init (USER1_GPIO_Port, &GPIO_InitStruct);
 }
 
 /**
@@ -306,13 +340,14 @@ void deinitGpio() {
  * @param None
  * @retval None
  */
-void deinitAlarmInput() {
+void deinitAlarmInput ()
+{
 	GPIO_InitTypeDef GPIO_InitStruct = { 0 };
 
 	GPIO_InitStruct.Pin = D1_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	HAL_GPIO_Init(D1_GPIO_Port, &GPIO_InitStruct);
+	HAL_GPIO_Init (D1_GPIO_Port, &GPIO_InitStruct);
 }
 
 /**
@@ -320,13 +355,14 @@ void deinitAlarmInput() {
  * @param None
  * @retval None
  */
-void deinitPowerInput() {
+void deinitPowerInput ()
+{
 	GPIO_InitTypeDef GPIO_InitStruct = { 0 };
 
 	GPIO_InitStruct.Pin = extPower_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	HAL_GPIO_Init(extPower_GPIO_Port, &GPIO_InitStruct);
+	HAL_GPIO_Init (extPower_GPIO_Port, &GPIO_InitStruct);
 }
 
 /**
@@ -334,13 +370,14 @@ void deinitPowerInput() {
  * @param None
  * @retval None
  */
-void initAlarmInput() {
+void initAlarmInput ()
+{
 	GPIO_InitTypeDef GPIO_InitStruct = { 0 };
 
 	GPIO_InitStruct.Pin = D1_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
 	GPIO_InitStruct.Pull = GPIO_PULLDOWN;
-	HAL_GPIO_Init(D1_GPIO_Port, &GPIO_InitStruct);
+	HAL_GPIO_Init (D1_GPIO_Port, &GPIO_InitStruct);
 }
 
 /**
@@ -348,13 +385,14 @@ void initAlarmInput() {
  * @param None
  * @retval None
  */
-void initPowerInput() {
+void initPowerInput ()
+{
 	GPIO_InitTypeDef GPIO_InitStruct = { 0 };
 
 	GPIO_InitStruct.Pin = extPower_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
 	GPIO_InitStruct.Pull = GPIO_PULLDOWN;
-	HAL_GPIO_Init(extPower_GPIO_Port, &GPIO_InitStruct);
+	HAL_GPIO_Init (extPower_GPIO_Port, &GPIO_InitStruct);
 }
 /**
  * @brief Configures Radio module, tries to load custom settings from EEPROM
@@ -362,20 +400,21 @@ void initPowerInput() {
  * @param None
  * @retval None
  */
-void RadioInit(nodeSettings_t *settingsPtr) {
+void RadioInit (nodeSettings_t *settingsPtr)
+{
 	SX127X_dio_t nss;
 	SX127X_dio_t reset;
 
-	SX127X_defaultConfig(&myRadio);
-	defaultSettings(settingsPtr);
-	tryEeprom(settingsPtr);
+	SX127X_defaultConfig (&myRadio);
+	defaultSettings (settingsPtr);
+	tryEeprom (settingsPtr);
 	nss.pin = NSS_Pin;
 	nss.port = NSS_GPIO_Port;
 	reset.pin = RESET_Pin;
 	reset.port = RESET_GPIO_Port;
-	SX127X_PortConfig(&myRadio, reset, nss, &hspi1);
-	SX127X_init(&myRadio);
-	SX127X_config(&myRadio);
+	SX127X_PortConfig (&myRadio, reset, nss, &hspi1);
+	SX127X_init (&myRadio);
+	SX127X_config (&myRadio);
 }
 
 /**
@@ -385,61 +424,74 @@ void RadioInit(nodeSettings_t *settingsPtr) {
  * @param None
  * @retval None
  */
-void ReceivingTest() {
+void ReceivingTest ()
+{
 	uint32_t recTime = 0x80000000;
 	uint32_t recTime1 = 0x80000000;
 	uint32_t recTime2 = 0x80000000;
 	bool repeaterMode = false;
-	debugLogTime("Receiving test activated");
-	while (1) {
+	debugLogTime ("Receiving test activated");
+	while (1)
+		{
 
-		SX127X_Routine(&myRadio);
-		if (myRadio.readBytes > 0) {
-			if (myRadio.badCrc == 0) {
-				if (myRadio.rxBuf[0] == 255 && myRadio.rxBuf[1] == 255) {
-					repeaterMode = true;
-					if (myRadio.rxBuf[2] == 1)
-						recTime1 = HAL_GetTick();
-					if (myRadio.rxBuf[2] == 2)
-						recTime2 = HAL_GetTick();
-				} else {
-					recTime = HAL_GetTick();
+			SX127X_Routine (&myRadio);
+			if (myRadio.readBytes > 0)
+				{
+					if (myRadio.badCrc == 0)
+						{
+							if (myRadio.rxBuf[0] == 255 && myRadio.rxBuf[1] == 255)
+								{
+									repeaterMode = true;
+									if (myRadio.rxBuf[2] == 1)
+										recTime1 = HAL_GetTick ();
+									if (myRadio.rxBuf[2] == 2)
+										recTime2 = HAL_GetTick ();
+								}
+							else
+								{
+									recTime = HAL_GetTick ();
+								}
+
+						}
+
+					myRadio.readBytes = 0;
+				}
+			if (repeaterMode)
+				{
+					if (myRadio.signalDetected)
+						{
+							HAL_GPIO_WritePin (BLUE_GPIO_Port, BLUE_Pin, LED_ON);
+							HAL_GPIO_WritePin (BLUE_GPIO_Port, ORANGE_Pin, LED_ON);
+						}
+					else
+						{
+							HAL_GPIO_WritePin (BLUE_GPIO_Port, BLUE_Pin, LED_OFF);
+							HAL_GPIO_WritePin (BLUE_GPIO_Port, ORANGE_Pin, LED_OFF);
+						}
+
+					if (HAL_GetTick () - recTime1 < 300)
+						HAL_GPIO_WritePin (ORANGE_GPIO_Port, ORANGE_Pin, LED_ON);
+					else
+						HAL_GPIO_WritePin (ORANGE_GPIO_Port, ORANGE_Pin, LED_OFF);
+					if (HAL_GetTick () - recTime2 < 300)
+						HAL_GPIO_WritePin (ORANGE_GPIO_Port, BLUE_Pin, LED_ON);
+					else
+						HAL_GPIO_WritePin (ORANGE_GPIO_Port, BLUE_Pin, LED_OFF);
+				}
+			else
+				{
+					if (myRadio.signalDetected)
+						HAL_GPIO_WritePin (BLUE_GPIO_Port, BLUE_Pin, LED_ON);
+					else
+						HAL_GPIO_WritePin (BLUE_GPIO_Port, BLUE_Pin, LED_OFF);
+					if (HAL_GetTick () - recTime < 300)
+						HAL_GPIO_WritePin (ORANGE_GPIO_Port, ORANGE_Pin, LED_ON);
+					else
+						HAL_GPIO_WritePin (ORANGE_GPIO_Port, ORANGE_Pin, LED_OFF);
+
 				}
 
-			}
-
-			myRadio.readBytes = 0;
 		}
-		if (repeaterMode) {
-			if (myRadio.signalDetected) {
-				HAL_GPIO_WritePin(BLUE_GPIO_Port, BLUE_Pin, 1);
-				HAL_GPIO_WritePin(BLUE_GPIO_Port, ORANGE_Pin, 1);
-			} else {
-				HAL_GPIO_WritePin(BLUE_GPIO_Port, BLUE_Pin, 0);
-				HAL_GPIO_WritePin(BLUE_GPIO_Port, ORANGE_Pin, 0);
-			}
-
-			if (HAL_GetTick() - recTime1 < 300)
-				HAL_GPIO_WritePin(ORANGE_GPIO_Port, ORANGE_Pin, 1);
-			else
-				HAL_GPIO_WritePin(ORANGE_GPIO_Port, ORANGE_Pin, 0);
-			if (HAL_GetTick() - recTime2 < 300)
-				HAL_GPIO_WritePin(ORANGE_GPIO_Port, BLUE_Pin, 1);
-			else
-				HAL_GPIO_WritePin(ORANGE_GPIO_Port, BLUE_Pin, 0);
-		} else {
-			if (myRadio.signalDetected)
-				HAL_GPIO_WritePin(BLUE_GPIO_Port, BLUE_Pin, 1);
-			else
-				HAL_GPIO_WritePin(BLUE_GPIO_Port, BLUE_Pin, 0);
-			if (HAL_GetTick() - recTime < 300)
-				HAL_GPIO_WritePin(ORANGE_GPIO_Port, ORANGE_Pin, 1);
-			else
-				HAL_GPIO_WritePin(ORANGE_GPIO_Port, ORANGE_Pin, 0);
-
-		}
-
-	}
 }
 
 /**
@@ -450,98 +502,101 @@ void ReceivingTest() {
  * @param None
  * @retval None
  */
-void PingTest() {
+void PingTest ()
+{
 
-	debugLogTime("Ping test activated");
-	while (1) {
-		static uint32_t lastTrans;
-		static uint32_t recTime;
+	debugLogTime ("Ping test activated");
+	while (1)
+		{
+			static uint32_t lastTrans;
+			static uint32_t recTime;
 
-		SX127X_Routine(&myRadio);
+			SX127X_Routine (&myRadio);
 
-		if (myRadio.readBytes > 0) {
-			if (myRadio.badCrc == 0)
-				recTime = HAL_GetTick();
-			myRadio.readBytes = 0;
+			if (myRadio.readBytes > 0)
+				{
+					if (myRadio.badCrc == 0)
+						recTime = HAL_GetTick ();
+					myRadio.readBytes = 0;
+				}
+
+			if (HAL_GetTick () - lastTrans > 2000)
+				{
+					lastTrans = HAL_GetTick ();
+				}
+			if (HAL_GetTick () - recTime < 300)
+				HAL_GPIO_WritePin (ORANGE_GPIO_Port, ORANGE_Pin, LED_ON);
+			else
+				HAL_GPIO_WritePin (ORANGE_GPIO_Port, ORANGE_Pin, LED_OFF);
+
+			if (myRadio.status == TX)
+				HAL_GPIO_WritePin (BLUE_GPIO_Port, BLUE_Pin, LED_ON);
+			else
+				HAL_GPIO_WritePin (BLUE_GPIO_Port, BLUE_Pin, LED_OFF);
 		}
-
-		if (HAL_GetTick() - lastTrans > 2000) {
-			lastTrans = HAL_GetTick();
-		}
-		if (HAL_GetTick() - recTime < 300)
-			HAL_GPIO_WritePin(ORANGE_GPIO_Port, ORANGE_Pin, 1);
-		else
-			HAL_GPIO_WritePin(ORANGE_GPIO_Port, ORANGE_Pin, 0);
-
-		if (myRadio.status == TX)
-			HAL_GPIO_WritePin(BLUE_GPIO_Port, BLUE_Pin, 1);
-		else
-			HAL_GPIO_WritePin(BLUE_GPIO_Port, BLUE_Pin, 0);
-	}
 }
 
-void ledRoutine(SX127X_t *module, nodeSettings_t *settingsPtr) {
+void ledRoutine (SX127X_t *module, nodeSettings_t *settingsPtr)
+{
 	static uint32_t lastBlink = 0;
 	if (module->signalDetected && settingsPtr->useLed)
-		HAL_GPIO_WritePin(ORANGE_GPIO_Port, ORANGE_Pin, LED_ON);
+		HAL_GPIO_WritePin (ORANGE_GPIO_Port, ORANGE_Pin, LED_ON);
 	else
-		HAL_GPIO_WritePin(ORANGE_GPIO_Port, ORANGE_Pin, LED_OFF);
+		HAL_GPIO_WritePin (ORANGE_GPIO_Port, ORANGE_Pin, LED_OFF);
 
 	if (module->status == TX && settingsPtr->useLed)
-		HAL_GPIO_WritePin(BLUE_GPIO_Port, BLUE_Pin, LED_ON);
+		HAL_GPIO_WritePin (BLUE_GPIO_Port, BLUE_Pin, LED_ON);
 	else
-		HAL_GPIO_WritePin(BLUE_GPIO_Port, BLUE_Pin, LED_OFF);
+		HAL_GPIO_WritePin (BLUE_GPIO_Port, BLUE_Pin, LED_OFF);
 
-	if (HAL_GetTick() - lastBlink > 5000) {
-		lastBlink = HAL_GetTick();
-	}
-	if (HAL_GetTick() - lastBlink < 50 && settingsPtr->useLed) {
-		HAL_GPIO_WritePin(BLUE_GPIO_Port, ORANGE_Pin | BLUE_Pin, LED_ON);
-	}
+	if (HAL_GetTick () - lastBlink > 5000)
+		{
+			lastBlink = HAL_GetTick ();
+		}
+	if (HAL_GetTick () - lastBlink < 50 && settingsPtr->useLed)
+		{
+			HAL_GPIO_WritePin (BLUE_GPIO_Port, ORANGE_Pin | BLUE_Pin, LED_ON);
+		}
 
 }
 
-void printInfo(nodeStatus_t *status, uint32_t tm, uint32_t miss) {
+void printInfo (nodeStatus_t *status, uint32_t tm, uint32_t miss)
+{
 #ifdef DEBUG
 	uint32_t time = RTC->TR;
 	uint32_t date = RTC->DR;
-	uint32_t tick = HAL_GetTick();
-	printf("Status requested\n");
-	printf("SysTick: %10lu\n", tick);
-	printf("System time: %02x:%02x:%02x\n", (uint16_t) (time >> 16) & 0xFF,
-			(uint16_t) (time >> 8) & 0xFF, (uint16_t) time & 0xFF);
-	printf("System date: %x.%02x.%x\n", (uint16_t) date & 0xFF,
-			(uint16_t) (date >> 8) & 0x1F,
-			((uint16_t) (date >> 16) & 0xFF) + 0x2000);
-	printf("Voltage: %d.%02d V\n", (int) getVoltage(),
-			((int) (getVoltage() * 100) % 100));
-	printf("Temp: %d.%01d C\n", (int) getTemperature(),
-			((int) (getTemperature() * 10) % 10));
-	printf("Powered: %s\n", status->powered ? "Yes" : "No");
-	printf("Powered to confirm: %s\n", status->poweredToConfirm ? "Yes" : "No");
-	printf("Disarmed: %s\n", status->disarmed ? "Yes" : "No");
-	printf("Door opened: %s\n", status->opened ? "Yes" : "No");
-	printf("Opened to confirm: %s\n", status->openedToConfirm ? "Yes" : "No");
-	printf("Unconfirmed opening: %s\n",
-			status->unconfirmedOpening ? "Yes" : "No");
-	printf("Radio status: %s\n", statuses[myRadio.status]);
-	printf("Message count: %lu\n", tm);
-	printf("Without acknowledge: %lu\n", miss);
-	printf("Displayed in : %lu ms\n", HAL_GetTick() - tick);
+	uint32_t tick = HAL_GetTick ();
+	printf ("Status requested\n");
+	printf ("SysTick: %10lu\n", tick);
+	printf ("System time: %02x:%02x:%02x\n", (uint16_t) (time >> 16) & 0xFF, (uint16_t) (time >> 8) & 0xFF, (uint16_t) time & 0xFF);
+	printf ("System date: %x.%02x.%x\n", (uint16_t) date & 0xFF, (uint16_t) (date >> 8) & 0x1F, ((uint16_t) (date >> 16) & 0xFF) + 0x2000);
+	printf ("Voltage: %d.%02d V\n", (int) getVoltage (), ((int) (getVoltage () * 100) % 100));
+	printf ("Temp: %d.%01d C\n", (int) getTemperature (), ((int) (getTemperature () * 10) % 10));
+	printf ("Powered: %s\n", status->powered ? "Yes" : "No");
+	printf ("Powered to confirm: %s\n", status->poweredToConfirm ? "Yes" : "No");
+	printf ("Disarmed: %s\n", status->disarmed ? "Yes" : "No");
+	printf ("Door opened: %s\n", status->opened ? "Yes" : "No");
+	printf ("Opened to confirm: %s\n", status->openedToConfirm ? "Yes" : "No");
+	printf ("Unconfirmed opening: %s\n", status->unconfirmedOpening ? "Yes" : "No");
+	printf ("Radio status: %s\n", statuses[myRadio.status]);
+	printf ("Message count: %lu\n", tm);
+	printf ("Without acknowledge: %lu\n", miss);
+	printf ("Displayed in : %lu ms\n", HAL_GetTick () - tick);
 #endif
 }
 /* USER CODE END 0 */
 
 /**
-  * @brief  The application entry point.
-  * @retval int
-  */
-int main(void)
+ * @brief  The application entry point.
+ * @retval int
+ */
+int main (void)
 {
-  /* USER CODE BEGIN 1 */
+	/* USER CODE BEGIN 1 */
 
-	nodeStatus_t status={0,};
-	nodeSettings_t settings={0,};
+	nodeStatus_t status = { 0, };
+	nodeSettings_t settings = { 0, };
+	workInterval = &settings.workInterval;
 
 	downlinkMessage_t *rxMes = (downlinkMessage_t*) myRadio.rxBuf;
 
@@ -553,636 +608,636 @@ int main(void)
 	bool dontSleep = false;
 	bool wfa = false;
 
-	uint32_t recomendedDelay = 600;
-
 	uint32_t totalMessages = 0;
 	uint32_t acknowledgeMiss = 0;
 
+	/* USER CODE END 1 */
 
-  /* USER CODE END 1 */
+	/* MCU Configuration--------------------------------------------------------*/
 
-  /* MCU Configuration--------------------------------------------------------*/
+	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+	HAL_Init ();
 
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  HAL_Init();
+	/* USER CODE BEGIN Init */
 
-  /* USER CODE BEGIN Init */
+	/* USER CODE END Init */
 
-  /* USER CODE END Init */
+	/* Configure the system clock */
+	SystemClock_Config ();
 
-  /* Configure the system clock */
-  SystemClock_Config();
+	/* USER CODE BEGIN SysInit */
 
-  /* USER CODE BEGIN SysInit */
+	/* USER CODE END SysInit */
 
-  /* USER CODE END SysInit */
+	/* Initialize all configured peripherals */
+	MX_GPIO_Init ();
+	MX_DMA_Init ();
+	MX_RTC_Init ();
+	MX_SPI1_Init ();
+	MX_USART1_UART_Init ();
+	MX_ADC_Init ();
+	MX_LPTIM1_Init ();
+	MX_WWDG_Init ();
+	/* USER CODE BEGIN 2 */
 
-  /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-  MX_DMA_Init();
-  MX_RTC_Init();
-  MX_SPI1_Init();
-  MX_USART1_UART_Init();
-  MX_ADC_Init();
-  MX_LPTIM1_Init();
-  MX_WWDG_Init();
-  /* USER CODE BEGIN 2 */
+	initUart (&huart1, &hdma_usart1_rx, &myRadio);
+	HAL_LPTIM_Counter_Start_IT (&hlptim1, 256 * WATCHDOG_INTERVAL);
+	printf ("<ANv%lx>\n", SOFTWARE_REVISION);
+	DBGMCU->APB1FZ |= DBGMCU_APB1_FZ_DBG_IWDG_STOP_Msk | DBGMCU_APB1_FZ_DBG_WWDG_STOP_Msk;
 
-  //Hardware Revesion correction
-
-#if HARDWARE_REVISION == 1
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
-  GPIO_InitStruct.Pin = extPower_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
-  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-#endif
-	initUart(&huart1, &hdma_usart1_rx, &myRadio);
-	recomendedDelay=settings.workInterval;
-	HAL_LPTIM_Counter_Start_IT(&hlptim1, 256 * WATCHDOG_INTERVAL);
-	printf("<ANv%lx>\n", SOFTWARE_REVISION);
-	DBGMCU->APB1FZ |= DBGMCU_APB1_FZ_DBG_IWDG_STOP_Msk
-			| DBGMCU_APB1_FZ_DBG_WWDG_STOP_Msk;
-
-	HAL_ADCEx_Calibration_Start(&hadc, ADC_SINGLE_ENDED);
-	RadioInit(&settings);
+	HAL_ADCEx_Calibration_Start (&hadc, ADC_SINGLE_ENDED);
+	RadioInit (&settings);
+	recomendedDelay = settings.workInterval;
 
 	flag.rtcAlarm = 1;
-	status.poweredConfirmed = HAL_GPIO_ReadPin(extPower_GPIO_Port,
+	status.poweredConfirmed = HAL_GPIO_ReadPin (extPower_GPIO_Port,
 	extPower_Pin);
-	status.openedConfirmed = HAL_GPIO_ReadPin(D1_GPIO_Port, D1_Pin);
-  /* USER CODE END 2 */
+	status.openedConfirmed = HAL_GPIO_ReadPin (D1_GPIO_Port, D1_Pin);
+	HAL_DBGMCU_DisableDBGStopMode ();
+	/* USER CODE END 2 */
 
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
-#if HARDWARE_REVISION > 1
+	/* Infinite loop */
+	/* USER CODE BEGIN WHILE */
+
 	// PIN MAP: 0-1
 	//Receiving test
-	if (HAL_GPIO_ReadPin(USER2_GPIO_Port, USER2_Pin) == 0
-			&& HAL_GPIO_ReadPin(USER2_GPIO_Port, USER2_Pin) == 1) {
-		ReceivingTest();
-	}
+	if (HAL_GPIO_ReadPin (USER2_GPIO_Port, USER2_Pin) == USER2_ACTIVE && HAL_GPIO_ReadPin (USER1_GPIO_Port, USER1_Pin) != USER1_ACTIVE)
+		{
+			ReceivingTest ();
+		}
 	//PIN MAP 1-0
 	//Ping Test
-	if (HAL_GPIO_ReadPin(USER1_GPIO_Port, USER1_Pin) == 1
-			&& HAL_GPIO_ReadPin(USER2_GPIO_Port, USER2_Pin) == 0) {
-		PingTest();
-	}
+	if (HAL_GPIO_ReadPin (USER2_GPIO_Port, USER2_Pin) != USER1_ACTIVE && HAL_GPIO_ReadPin (USER1_GPIO_Port, USER1_Pin) == USER1_ACTIVE)
+		{
+			PingTest ();
+		}
 
 	//PIN MAP 1-1 - Don't sleep
-	if (HAL_GPIO_ReadPin(USER1_GPIO_Port, USER1_Pin) == 0
-			&& HAL_GPIO_ReadPin(USER2_GPIO_Port, USER2_Pin) == 0)
+	if (HAL_GPIO_ReadPin (USER2_GPIO_Port, USER2_Pin) == USER2_ACTIVE && HAL_GPIO_ReadPin (USER1_GPIO_Port, USER1_Pin) == USER1_ACTIVE)
 		dontSleep = true;
-#endif
-	deinitGpio();
 
-	while (1) {
-HAL_WWDG_Refresh(&hwwdg);
-		status.powered = HAL_GPIO_ReadPin(extPower_GPIO_Port, extPower_Pin);
+	deinitGpio ();
 
-		if (flag.statusRequested) {
+	while (1)
+		{
+			HAL_WWDG_Refresh (&hwwdg);
+			status.powered = HAL_GPIO_ReadPin (extPower_GPIO_Port, extPower_Pin);
 
-			flag.statusRequested = 0;
-
-			printInfo(&status, totalMessages, acknowledgeMiss);
-		}
-
-		if (flag.rtcAlarm) {
-			flag.rtcAlarm = 0;
-			if (status.disarmed == 0 || status.powered == 0)
-				triesToSend = MAX_RETRIES;
-
-		}
-
-		if (flag.saveSettings) {
-			flag.saveSettings = 0;
-
-			debugLogTime("Saving settings to EEPROM");
-			initiateSettings(&settings);
-			saveSettings(&settings);
-		}
-
-		if ((status.openedConfirmed != status.opened
-				|| status.poweredConfirmed != status.powered || triesToSend > 0
-				|| status.unconfirmedOpening) && !wfa && !status.disarmed
-				&& HAL_GetTick() - myRadio.lastSignalTick
-						> 10 + settings.nodeNum * 50 && myRadio.status != TX
-				&& !myRadio.signalDetected) {
-			if (status.opened)
-				status.unconfirmedOpening = true;
-			if (triesToSend)
-				triesToSend--;
-			debugLogTime("Sending status");
-			totalMessages++;
-			lastTransTime = HAL_GetTick();
-			sendStatus(&status, &settings);
-			wfa = true;
-			HAL_RTCEx_SetWakeUpTimer_IT(&hrtc, recomendedDelay,
-			RTC_WAKEUPCLOCK_CK_SPRE_16BITS);
-		}
-
-		//Got no acknowledge
-		if (wfa && HAL_GetTick() - lastTransTime > interval) {
-			acknowledgeMiss++;
-			uint32_t maxInterval = settings.workInterval * 1000 / MAX_RETRIES;
-			debugLogTime("Got no acknowledge!");
-			wfa = false;
-			interval += INTERVAL_STEP;
-			interval = (interval > maxInterval) ? maxInterval : interval;
-		}
-
-		if (flag.uartRx) {
-			flag.uartRx = 0;
-
-			uartReceiveHandler(&settings);
-		}
-
-		if (flag.readConfig) {
-			flag.readConfig = 0;
-
-			sendConfig(&settings);
-		}
-
-		if (myRadio.readBytes > 0) {
-			debugLogTime("Got message...");
-			if (rxMes->uplink == 0 && rxMes->adr == settings.nodeNum
-					&& myRadio.badCrc == 0) //Message for us!
-							{
-				debugLog("It's for us!");
-				if (status.disarmed != rxMes->disarm)
-					printf("                  Disarmed changed to %s\n",
-							rxMes->disarm ? "Yes" : "No");
-
-				status.disarmed = rxMes->disarm;
-				if (rxMes->codedDelayMSB || rxMes->codedDelayLSB) {
-
-					recomendedDelay = rxMes->codedDelayLSB
-							+ (rxMes->codedDelayMSB << 8);
-					if (recomendedDelay > 2 * settings.workInterval) {
-						printf(
-								"###Recommended delay is too high(%lu), returning to 2x work Interval\n",
-								recomendedDelay);
-						recomendedDelay = 2 * settings.workInterval;
-					} else
-						printf(
-								"                  Recommended delay set to %lu\n",
-								recomendedDelay);
-				} else
-
+			if (flag.statusRequested)
 				{
-					printf("                  Recommended returned to %lu\n",
-							settings.workInterval);
-					recomendedDelay = settings.workInterval;
+
+					flag.statusRequested = 0;
+
+					printInfo (&status, totalMessages, acknowledgeMiss);
 				}
-				HAL_RTCEx_SetWakeUpTimer_IT(&hrtc, recomendedDelay, RTC_WAKEUPCLOCK_CK_SPRE_16BITS);
-				if (rxMes->message == MSG_DOWN_REQUEST) //Request current status
+
+			if (flag.rtcAlarm)
 				{
-					debugLog("Status requested...sending");
+					flag.rtcAlarm = 0;
+					if (status.disarmed == 0 || status.powered == 0)
+						triesToSend = MAX_RETRIES;
+
+				}
+
+			if (flag.saveSettings)
+				{
+					flag.saveSettings = 0;
+
+					debugLogTime ("Saving settings to EEPROM");
+					initiateSettings (&settings);
+					saveSettings (&settings);
+				}
+
+			if ((status.openedConfirmed != status.opened || status.poweredConfirmed != status.powered || triesToSend > 0 || status.unconfirmedOpening)
+					&& !wfa && !status.disarmed && HAL_GetTick () - myRadio.lastSignalTick > 10 + settings.nodeNum * 50 && myRadio.status != TX)
+				{
+					if (status.opened)
+						status.unconfirmedOpening = true;
+					if (triesToSend)
+						triesToSend--;
+
+					debugLogTime ("Sending status");
+					debugLogInt ("%d tries left", triesToSend);
+
 					totalMessages++;
-					lastTransTime = HAL_GetTick();
-					sendStatus(&status, &settings);
+					lastTransTime = HAL_GetTick ();
+					sendStatus (&status, &settings);
 					wfa = true;
-					HAL_RTCEx_SetWakeUpTimer_IT(&hrtc, recomendedDelay,
-					RTC_WAKEUPCLOCK_CK_SPRE_16BITS);
+					setWakeup (recomendedDelay);
 				}
 
-				else if (rxMes->message == MSG_DOWN_ACKNOWLEDGE) {
-					debugLog("Acknowledge received");
-					if (status.openedToConfirm == 1)
-						status.unconfirmedOpening = 0;
-					status.openedConfirmed = status.openedToConfirm;
-					status.poweredConfirmed = status.poweredToConfirm;
+			//Got no acknowledge
+			if (wfa && HAL_GetTick () - lastTransTime > interval)
+				{
+					acknowledgeMiss++;
+					uint32_t maxInterval = settings.workInterval * 1000 / 3;
+					debugLogTime ("Got no acknowledge!");
 					wfa = false;
-					interval = DEFAULT_INTERVAL;
-					triesToSend = 0;
-
+					interval += INTERVAL_STEP;
+					interval = (interval > maxInterval) ? maxInterval : interval;
 				}
-			} else
-				debugLog("Not for us...");
-			myRadio.readBytes = 0;
+
+			if (flag.uartRx)
+				{
+					flag.uartRx = 0;
+
+					uartReceiveHandler (&settings);
+				}
+
+			if (flag.readConfig)
+				{
+					flag.readConfig = 0;
+
+					sendConfig (&settings);
+				}
+
+			if (myRadio.readBytes > 0)
+				{
+					debugLogTime ("Got message...");
+					if (myRadio.badCrc == 1)
+						{
+							debugLog ("Bad CRC!");
+							myRadio.readBytes = 0;
+						}
+					else if (rxMes->uplink == 0 && rxMes->adr == settings.nodeNum)
+						{
+							if (status.disarmed != rxMes->disarm)
+								debugLogString ("Disarmed changed to %s", rxMes->disarm ? "Yes" : "No");
+
+							status.disarmed = rxMes->disarm;
+							if (rxMes->codedDelayMSB || rxMes->codedDelayLSB)
+								{
+
+									recomendedDelay = rxMes->codedDelayLSB + (rxMes->codedDelayMSB << 8);
+									if (recomendedDelay > 2 * settings.workInterval)
+										{
+											debugLogInt ("###Recommended delay is too high(%u), returning to 2x work Interval", recomendedDelay);
+											recomendedDelay = 2 * settings.workInterval;
+										}
+									else
+										debugLogInt ("Recommended delay set to %u", recomendedDelay);
+								}
+							else
+								{
+									debugLogInt ("Recommended returned to %u", (uint16_t) settings.workInterval);
+									recomendedDelay = settings.workInterval;
+								}
+							setWakeup (recomendedDelay);
+							if (rxMes->message == MSG_DOWN_REQUEST) //Request current status
+								{
+									debugLog ("Status requested...sending");
+									totalMessages++;
+									lastTransTime = HAL_GetTick ();
+									sendStatus (&status, &settings);
+									wfa = true;
+									setWakeup (recomendedDelay);
+								}
+
+							else if (rxMes->message == MSG_DOWN_ACKNOWLEDGE)
+								{
+									debugLog ("Acknowledge received");
+									if (status.openedToConfirm == 1)
+										status.unconfirmedOpening = 0;
+									status.openedConfirmed = status.openedToConfirm;
+									status.poweredConfirmed = status.poweredToConfirm;
+									wfa = false;
+									interval = DEFAULT_INTERVAL;
+									triesToSend = 0;
+
+								}
+						}
+					else
+						{
+
+							if (rxMes->uplink == 0)
+								{
+									debugLogInt ("It's for %d", rxMes->adr);
+									debugLogInt ("Delay for him: %d", rxMes->codedDelayLSB + (rxMes->codedDelayMSB << 8));
+								}
+							else
+								{
+									debugLogInt ("It's from %d", rxMes->adr);
+								}
+						}
+					myRadio.readBytes = 0;
+				}
+
+			SX127X_Routine (&myRadio);
+
+			ledRoutine (&myRadio, &settings);
+
+			status.opened = HAL_GPIO_ReadPin (D1_GPIO_Port, D1_Pin) || status.unconfirmedOpening;
+			status.powered = HAL_GPIO_ReadPin (extPower_GPIO_Port, extPower_Pin);
+			if (!status.powered && !wfa && !myRadio.TXrequest && status.powered == status.poweredConfirmed && status.opened == status.openedConfirmed
+					&& !dontSleep && triesToSend < 1)
+				{
+					debugLogTime ("Sleep...");
+					sleep ();
+				}
+
+			/* USER CODE END WHILE */
+
+			/* USER CODE BEGIN 3 */
 		}
+	/* USER CODE END 3 */
+}
 
-		SX127X_Routine(&myRadio);
+/**
+ * @brief System Clock Configuration
+ * @retval None
+ */
+void SystemClock_Config (void)
+{
+	RCC_OscInitTypeDef RCC_OscInitStruct = { 0 };
+	RCC_ClkInitTypeDef RCC_ClkInitStruct = { 0 };
+	RCC_PeriphCLKInitTypeDef PeriphClkInit = { 0 };
 
-		ledRoutine(&myRadio, &settings);
-
-		status.opened = HAL_GPIO_ReadPin(D1_GPIO_Port, D1_Pin)
-				|| status.unconfirmedOpening;
-		status.powered = HAL_GPIO_ReadPin(extPower_GPIO_Port, extPower_Pin);
-		if (!status.powered && !wfa && !myRadio.TXrequest
-				&& status.powered == status.poweredConfirmed
-				&& status.opened == status.openedConfirmed && !dontSleep
-				&& triesToSend < 1) {
-			debugLogTime("Sleep...");
-			sleep(recomendedDelay);
+	/** Configure the main internal regulator output voltage
+	 */
+	__HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
+	/** Configure LSE Drive Capability
+	 */
+	HAL_PWR_EnableBkUpAccess ();
+	__HAL_RCC_LSEDRIVE_CONFIG(RCC_LSEDRIVE_MEDIUMHIGH);
+	/** Initializes the RCC Oscillators according to the specified parameters
+	 * in the RCC_OscInitTypeDef structure.
+	 */
+	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSE | RCC_OSCILLATORTYPE_MSI;
+	RCC_OscInitStruct.LSEState = RCC_LSE_ON;
+	RCC_OscInitStruct.MSIState = RCC_MSI_ON;
+	RCC_OscInitStruct.MSICalibrationValue = 0;
+	RCC_OscInitStruct.MSIClockRange = RCC_MSIRANGE_5;
+	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+	if (HAL_RCC_OscConfig (&RCC_OscInitStruct) != HAL_OK)
+		{
+			Error_Handler ();
 		}
+	/** Initializes the CPU, AHB and APB buses clocks
+	 */
+	RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+	RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_MSI;
+	RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-    /* USER CODE END WHILE */
+	if (HAL_RCC_ClockConfig (&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+		{
+			Error_Handler ();
+		}
+	PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1 | RCC_PERIPHCLK_RTC | RCC_PERIPHCLK_LPTIM1;
+	PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
+	PeriphClkInit.RTCClockSelection = RCC_RTCCLKSOURCE_LSE;
+	PeriphClkInit.LptimClockSelection = RCC_LPTIM1CLKSOURCE_LSE;
 
-    /* USER CODE BEGIN 3 */
-	}
-  /* USER CODE END 3 */
+	if (HAL_RCCEx_PeriphCLKConfig (&PeriphClkInit) != HAL_OK)
+		{
+			Error_Handler ();
+		}
 }
 
 /**
-  * @brief System Clock Configuration
-  * @retval None
-  */
-void SystemClock_Config(void)
-{
-  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
-  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
-  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
-
-  /** Configure the main internal regulator output voltage
-  */
-  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
-  /** Configure LSE Drive Capability
-  */
-  HAL_PWR_EnableBkUpAccess();
-  __HAL_RCC_LSEDRIVE_CONFIG(RCC_LSEDRIVE_MEDIUMHIGH);
-  /** Initializes the RCC Oscillators according to the specified parameters
-  * in the RCC_OscInitTypeDef structure.
-  */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSE|RCC_OSCILLATORTYPE_MSI;
-  RCC_OscInitStruct.LSEState = RCC_LSE_ON;
-  RCC_OscInitStruct.MSIState = RCC_MSI_ON;
-  RCC_OscInitStruct.MSICalibrationValue = 0;
-  RCC_OscInitStruct.MSIClockRange = RCC_MSIRANGE_5;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /** Initializes the CPU, AHB and APB buses clocks
-  */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
-                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_MSI;
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
-
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1|RCC_PERIPHCLK_RTC
-                              |RCC_PERIPHCLK_LPTIM1;
-  PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
-  PeriphClkInit.RTCClockSelection = RCC_RTCCLKSOURCE_LSE;
-  PeriphClkInit.LptimClockSelection = RCC_LPTIM1CLKSOURCE_LSE;
-
-  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
-  {
-    Error_Handler();
-  }
-}
-
-/**
-  * @brief ADC Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_ADC_Init(void)
+ * @brief ADC Initialization Function
+ * @param None
+ * @retval None
+ */
+static void MX_ADC_Init (void)
 {
 
-  /* USER CODE BEGIN ADC_Init 0 */
+	/* USER CODE BEGIN ADC_Init 0 */
 
-  /* USER CODE END ADC_Init 0 */
+	/* USER CODE END ADC_Init 0 */
 
-  ADC_ChannelConfTypeDef sConfig = {0};
+	ADC_ChannelConfTypeDef sConfig = { 0 };
 
-  /* USER CODE BEGIN ADC_Init 1 */
+	/* USER CODE BEGIN ADC_Init 1 */
 
-  /* USER CODE END ADC_Init 1 */
-  /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
-  */
-  hadc.Instance = ADC1;
-  hadc.Init.OversamplingMode = DISABLE;
-  hadc.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV1;
-  hadc.Init.Resolution = ADC_RESOLUTION_12B;
-  hadc.Init.SamplingTime = ADC_SAMPLETIME_160CYCLES_5;
-  hadc.Init.ScanConvMode = ADC_SCAN_DIRECTION_FORWARD;
-  hadc.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc.Init.ContinuousConvMode = DISABLE;
-  hadc.Init.DiscontinuousConvMode = DISABLE;
-  hadc.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
-  hadc.Init.ExternalTrigConv = ADC_SOFTWARE_START;
-  hadc.Init.DMAContinuousRequests = DISABLE;
-  hadc.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
-  hadc.Init.Overrun = ADC_OVR_DATA_PRESERVED;
-  hadc.Init.LowPowerAutoWait = DISABLE;
-  hadc.Init.LowPowerFrequencyMode = ENABLE;
-  hadc.Init.LowPowerAutoPowerOff = DISABLE;
-  if (HAL_ADC_Init(&hadc) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /** Configure for the selected ADC regular channel to be converted.
-  */
-  sConfig.Channel = ADC_CHANNEL_2;
-  sConfig.Rank = ADC_RANK_CHANNEL_NUMBER;
-  if (HAL_ADC_ConfigChannel(&hadc, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /** Configure for the selected ADC regular channel to be converted.
-  */
-  sConfig.Channel = ADC_CHANNEL_VREFINT;
-  if (HAL_ADC_ConfigChannel(&hadc, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN ADC_Init 2 */
+	/* USER CODE END ADC_Init 1 */
+	/** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
+	 */
+	hadc.Instance = ADC1;
+	hadc.Init.OversamplingMode = DISABLE;
+	hadc.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV1;
+	hadc.Init.Resolution = ADC_RESOLUTION_12B;
+	hadc.Init.SamplingTime = ADC_SAMPLETIME_160CYCLES_5;
+	hadc.Init.ScanConvMode = ADC_SCAN_DIRECTION_FORWARD;
+	hadc.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+	hadc.Init.ContinuousConvMode = DISABLE;
+	hadc.Init.DiscontinuousConvMode = DISABLE;
+	hadc.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+	hadc.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+	hadc.Init.DMAContinuousRequests = DISABLE;
+	hadc.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+	hadc.Init.Overrun = ADC_OVR_DATA_PRESERVED;
+	hadc.Init.LowPowerAutoWait = DISABLE;
+	hadc.Init.LowPowerFrequencyMode = ENABLE;
+	hadc.Init.LowPowerAutoPowerOff = DISABLE;
+	if (HAL_ADC_Init (&hadc) != HAL_OK)
+		{
+			Error_Handler ();
+		}
+	/** Configure for the selected ADC regular channel to be converted.
+	 */
+	sConfig.Channel = ADC_CHANNEL_2;
+	sConfig.Rank = ADC_RANK_CHANNEL_NUMBER;
+	if (HAL_ADC_ConfigChannel (&hadc, &sConfig) != HAL_OK)
+		{
+			Error_Handler ();
+		}
+	/** Configure for the selected ADC regular channel to be converted.
+	 */
+	sConfig.Channel = ADC_CHANNEL_VREFINT;
+	if (HAL_ADC_ConfigChannel (&hadc, &sConfig) != HAL_OK)
+		{
+			Error_Handler ();
+		}
+	/* USER CODE BEGIN ADC_Init 2 */
 
-  /* USER CODE END ADC_Init 2 */
+	/* USER CODE END ADC_Init 2 */
 
 }
 
 /**
-  * @brief LPTIM1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_LPTIM1_Init(void)
+ * @brief LPTIM1 Initialization Function
+ * @param None
+ * @retval None
+ */
+static void MX_LPTIM1_Init (void)
 {
 
-  /* USER CODE BEGIN LPTIM1_Init 0 */
+	/* USER CODE BEGIN LPTIM1_Init 0 */
 
-  /* USER CODE END LPTIM1_Init 0 */
+	/* USER CODE END LPTIM1_Init 0 */
 
-  /* USER CODE BEGIN LPTIM1_Init 1 */
+	/* USER CODE BEGIN LPTIM1_Init 1 */
 
-  /* USER CODE END LPTIM1_Init 1 */
-  hlptim1.Instance = LPTIM1;
-  hlptim1.Init.Clock.Source = LPTIM_CLOCKSOURCE_APBCLOCK_LPOSC;
-  hlptim1.Init.Clock.Prescaler = LPTIM_PRESCALER_DIV128;
-  hlptim1.Init.Trigger.Source = LPTIM_TRIGSOURCE_SOFTWARE;
-  hlptim1.Init.OutputPolarity = LPTIM_OUTPUTPOLARITY_HIGH;
-  hlptim1.Init.UpdateMode = LPTIM_UPDATE_IMMEDIATE;
-  hlptim1.Init.CounterSource = LPTIM_COUNTERSOURCE_INTERNAL;
-  if (HAL_LPTIM_Init(&hlptim1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN LPTIM1_Init 2 */
+	/* USER CODE END LPTIM1_Init 1 */
+	hlptim1.Instance = LPTIM1;
+	hlptim1.Init.Clock.Source = LPTIM_CLOCKSOURCE_APBCLOCK_LPOSC;
+	hlptim1.Init.Clock.Prescaler = LPTIM_PRESCALER_DIV128;
+	hlptim1.Init.Trigger.Source = LPTIM_TRIGSOURCE_SOFTWARE;
+	hlptim1.Init.OutputPolarity = LPTIM_OUTPUTPOLARITY_HIGH;
+	hlptim1.Init.UpdateMode = LPTIM_UPDATE_IMMEDIATE;
+	hlptim1.Init.CounterSource = LPTIM_COUNTERSOURCE_INTERNAL;
+	if (HAL_LPTIM_Init (&hlptim1) != HAL_OK)
+		{
+			Error_Handler ();
+		}
+	/* USER CODE BEGIN LPTIM1_Init 2 */
 
-  /* USER CODE END LPTIM1_Init 2 */
+	/* USER CODE END LPTIM1_Init 2 */
 
 }
 
 /**
-  * @brief RTC Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_RTC_Init(void)
+ * @brief RTC Initialization Function
+ * @param None
+ * @retval None
+ */
+static void MX_RTC_Init (void)
 {
 
-  /* USER CODE BEGIN RTC_Init 0 */
+	/* USER CODE BEGIN RTC_Init 0 */
 
-  /* USER CODE END RTC_Init 0 */
+	/* USER CODE END RTC_Init 0 */
 
-  /* USER CODE BEGIN RTC_Init 1 */
+	/* USER CODE BEGIN RTC_Init 1 */
 
-  /* USER CODE END RTC_Init 1 */
-  /** Initialize RTC Only
-  */
-  hrtc.Instance = RTC;
-  hrtc.Init.HourFormat = RTC_HOURFORMAT_24;
-  hrtc.Init.AsynchPrediv = 127;
-  hrtc.Init.SynchPrediv = 255;
-  hrtc.Init.OutPut = RTC_OUTPUT_DISABLE;
-  hrtc.Init.OutPutRemap = RTC_OUTPUT_REMAP_NONE;
-  hrtc.Init.OutPutPolarity = RTC_OUTPUT_POLARITY_HIGH;
-  hrtc.Init.OutPutType = RTC_OUTPUT_TYPE_OPENDRAIN;
-  if (HAL_RTC_Init(&hrtc) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /** Enable the WakeUp
-  */
-  if (HAL_RTCEx_SetWakeUpTimer_IT(&hrtc, 60, RTC_WAKEUPCLOCK_CK_SPRE_16BITS) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN RTC_Init 2 */
+	/* USER CODE END RTC_Init 1 */
+	/** Initialize RTC Only
+	 */
+	hrtc.Instance = RTC;
+	hrtc.Init.HourFormat = RTC_HOURFORMAT_24;
+	hrtc.Init.AsynchPrediv = 127;
+	hrtc.Init.SynchPrediv = 255;
+	hrtc.Init.OutPut = RTC_OUTPUT_DISABLE;
+	hrtc.Init.OutPutRemap = RTC_OUTPUT_REMAP_NONE;
+	hrtc.Init.OutPutPolarity = RTC_OUTPUT_POLARITY_HIGH;
+	hrtc.Init.OutPutType = RTC_OUTPUT_TYPE_OPENDRAIN;
+	if (HAL_RTC_Init (&hrtc) != HAL_OK)
+		{
+			Error_Handler ();
+		}
+	/** Enable the WakeUp
+	 */
+	if (HAL_RTCEx_SetWakeUpTimer_IT (&hrtc, 60, RTC_WAKEUPCLOCK_CK_SPRE_16BITS) != HAL_OK)
+		{
+			Error_Handler ();
+		}
+	/* USER CODE BEGIN RTC_Init 2 */
 
-  /* USER CODE END RTC_Init 2 */
+	/* USER CODE END RTC_Init 2 */
 
 }
 
 /**
-  * @brief SPI1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_SPI1_Init(void)
+ * @brief SPI1 Initialization Function
+ * @param None
+ * @retval None
+ */
+static void MX_SPI1_Init (void)
 {
 
-  /* USER CODE BEGIN SPI1_Init 0 */
+	/* USER CODE BEGIN SPI1_Init 0 */
 
-  /* USER CODE END SPI1_Init 0 */
+	/* USER CODE END SPI1_Init 0 */
 
-  /* USER CODE BEGIN SPI1_Init 1 */
+	/* USER CODE BEGIN SPI1_Init 1 */
 
-  /* USER CODE END SPI1_Init 1 */
-  /* SPI1 parameter configuration*/
-  hspi1.Instance = SPI1;
-  hspi1.Init.Mode = SPI_MODE_MASTER;
-  hspi1.Init.Direction = SPI_DIRECTION_2LINES;
-  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
-  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
-  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
-  hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
-  hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
-  hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
-  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
-  hspi1.Init.CRCPolynomial = 7;
-  if (HAL_SPI_Init(&hspi1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN SPI1_Init 2 */
+	/* USER CODE END SPI1_Init 1 */
+	/* SPI1 parameter configuration*/
+	hspi1.Instance = SPI1;
+	hspi1.Init.Mode = SPI_MODE_MASTER;
+	hspi1.Init.Direction = SPI_DIRECTION_2LINES;
+	hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
+	hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
+	hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
+	hspi1.Init.NSS = SPI_NSS_SOFT;
+	hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+	hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
+	hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
+	hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+	hspi1.Init.CRCPolynomial = 7;
+	if (HAL_SPI_Init (&hspi1) != HAL_OK)
+		{
+			Error_Handler ();
+		}
+	/* USER CODE BEGIN SPI1_Init 2 */
 
-  /* USER CODE END SPI1_Init 2 */
+	/* USER CODE END SPI1_Init 2 */
 
 }
 
 /**
-  * @brief USART1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_USART1_UART_Init(void)
+ * @brief USART1 Initialization Function
+ * @param None
+ * @retval None
+ */
+static void MX_USART1_UART_Init (void)
 {
 
-  /* USER CODE BEGIN USART1_Init 0 */
+	/* USER CODE BEGIN USART1_Init 0 */
 
-  /* USER CODE END USART1_Init 0 */
+	/* USER CODE END USART1_Init 0 */
 
-  /* USER CODE BEGIN USART1_Init 1 */
+	/* USER CODE BEGIN USART1_Init 1 */
 
-  /* USER CODE END USART1_Init 1 */
-  huart1.Instance = USART1;
-  huart1.Init.BaudRate = 9600;
-  huart1.Init.WordLength = UART_WORDLENGTH_8B;
-  huart1.Init.StopBits = UART_STOPBITS_1;
-  huart1.Init.Parity = UART_PARITY_NONE;
-  huart1.Init.Mode = UART_MODE_TX_RX;
-  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
-  huart1.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
-  huart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-  if (HAL_UART_Init(&huart1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN USART1_Init 2 */
+	/* USER CODE END USART1_Init 1 */
+	huart1.Instance = USART1;
+	huart1.Init.BaudRate = 9600;
+	huart1.Init.WordLength = UART_WORDLENGTH_8B;
+	huart1.Init.StopBits = UART_STOPBITS_1;
+	huart1.Init.Parity = UART_PARITY_NONE;
+	huart1.Init.Mode = UART_MODE_TX_RX;
+	huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+	huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+	huart1.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+	huart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+	if (HAL_UART_Init (&huart1) != HAL_OK)
+		{
+			Error_Handler ();
+		}
+	/* USER CODE BEGIN USART1_Init 2 */
 
-  /* USER CODE END USART1_Init 2 */
+	/* USER CODE END USART1_Init 2 */
 
 }
 
 /**
-  * @brief WWDG Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_WWDG_Init(void)
+ * @brief WWDG Initialization Function
+ * @param None
+ * @retval None
+ */
+static void MX_WWDG_Init (void)
 {
 
-  /* USER CODE BEGIN WWDG_Init 0 */
+	/* USER CODE BEGIN WWDG_Init 0 */
 
-  /* USER CODE END WWDG_Init 0 */
+	/* USER CODE END WWDG_Init 0 */
 
-  /* USER CODE BEGIN WWDG_Init 1 */
+	/* USER CODE BEGIN WWDG_Init 1 */
 
-  /* USER CODE END WWDG_Init 1 */
-  hwwdg.Instance = WWDG;
-  hwwdg.Init.Prescaler = WWDG_PRESCALER_8;
-  hwwdg.Init.Window = 127;
-  hwwdg.Init.Counter = 127;
-  hwwdg.Init.EWIMode = WWDG_EWI_DISABLE;
-  if (HAL_WWDG_Init(&hwwdg) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN WWDG_Init 2 */
+	/* USER CODE END WWDG_Init 1 */
+	hwwdg.Instance = WWDG;
+	hwwdg.Init.Prescaler = WWDG_PRESCALER_8;
+	hwwdg.Init.Window = 127;
+	hwwdg.Init.Counter = 127;
+	hwwdg.Init.EWIMode = WWDG_EWI_DISABLE;
+	if (HAL_WWDG_Init (&hwwdg) != HAL_OK)
+		{
+			Error_Handler ();
+		}
+	/* USER CODE BEGIN WWDG_Init 2 */
 
-  /* USER CODE END WWDG_Init 2 */
+	/* USER CODE END WWDG_Init 2 */
 
 }
 
 /**
-  * Enable DMA controller clock
-  */
-static void MX_DMA_Init(void)
+ * Enable DMA controller clock
+ */
+static void MX_DMA_Init (void)
 {
 
-  /* DMA controller clock enable */
-  __HAL_RCC_DMA1_CLK_ENABLE();
+	/* DMA controller clock enable */
+	__HAL_RCC_DMA1_CLK_ENABLE();
 
-  /* DMA interrupt init */
-  /* DMA1_Channel1_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
-  /* DMA1_Channel2_3_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Channel2_3_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Channel2_3_IRQn);
+	/* DMA interrupt init */
+	/* DMA1_Channel1_IRQn interrupt configuration */
+	HAL_NVIC_SetPriority (DMA1_Channel1_IRQn, 0, 0);
+	HAL_NVIC_EnableIRQ (DMA1_Channel1_IRQn);
+	/* DMA1_Channel2_3_IRQn interrupt configuration */
+	HAL_NVIC_SetPriority (DMA1_Channel2_3_IRQn, 0, 0);
+	HAL_NVIC_EnableIRQ (DMA1_Channel2_3_IRQn);
 
 }
 
 /**
-  * @brief GPIO Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_GPIO_Init(void)
+ * @brief GPIO Initialization Function
+ * @param None
+ * @retval None
+ */
+static void MX_GPIO_Init (void)
 {
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
+	GPIO_InitTypeDef GPIO_InitStruct = { 0 };
 
-  /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOC_CLK_ENABLE();
-  __HAL_RCC_GPIOH_CLK_ENABLE();
-  __HAL_RCC_GPIOA_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
+	/* GPIO Ports Clock Enable */
+	__HAL_RCC_GPIOC_CLK_ENABLE();
+	__HAL_RCC_GPIOH_CLK_ENABLE();
+	__HAL_RCC_GPIOA_CLK_ENABLE();
+	__HAL_RCC_GPIOB_CLK_ENABLE();
 
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, TempPower_Pin|RESET_Pin|NSS_Pin, GPIO_PIN_RESET);
+	/*Configure GPIO pin Output Level */
+	HAL_GPIO_WritePin (GPIOA, TempPower_Pin | RESET_Pin | NSS_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, BLUE_Pin|ORANGE_Pin, GPIO_PIN_RESET);
+	/*Configure GPIO pin Output Level */
+	HAL_GPIO_WritePin (GPIOB, BLUE_Pin | ORANGE_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : PC13 */
-  GPIO_InitStruct.Pin = GPIO_PIN_13;
-  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+	/*Configure GPIO pin : PC13 */
+	GPIO_InitStruct.Pin = GPIO_PIN_13;
+	GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	HAL_GPIO_Init (GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PH0 PH1 */
-  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1;
-  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOH, &GPIO_InitStruct);
+	/*Configure GPIO pins : PH0 PH1 */
+	GPIO_InitStruct.Pin = GPIO_PIN_0 | GPIO_PIN_1;
+	GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	HAL_GPIO_Init (GPIOH, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : D1_Pin extPower_Pin */
-  GPIO_InitStruct.Pin = D1_Pin|extPower_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
-  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+	/*Configure GPIO pins : D1_Pin extPower_Pin */
+	GPIO_InitStruct.Pin = D1_Pin | extPower_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+	GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+	HAL_GPIO_Init (GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : TempPower_Pin */
-  GPIO_InitStruct.Pin = TempPower_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(TempPower_GPIO_Port, &GPIO_InitStruct);
+	/*Configure GPIO pin : TempPower_Pin */
+	GPIO_InitStruct.Pin = TempPower_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+	HAL_GPIO_Init (TempPower_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : RESET_Pin NSS_Pin */
-  GPIO_InitStruct.Pin = RESET_Pin|NSS_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+	/*Configure GPIO pins : RESET_Pin NSS_Pin */
+	GPIO_InitStruct.Pin = RESET_Pin | NSS_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+	HAL_GPIO_Init (GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PB0 PB1 PB2 PB10
-                           PB11 PB14 PB15 PB3
-                           PB4 PB5 PB8 PB9 */
-  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_10
-                          |GPIO_PIN_11|GPIO_PIN_14|GPIO_PIN_15|GPIO_PIN_3
-                          |GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_8|GPIO_PIN_9;
-  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+	/*Configure GPIO pins : PB0 PB1 PB2 PB10
+	 PB11 PB14 PB15 PB3
+	 PB4 PB5 PB8 PB9 */
+	GPIO_InitStruct.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_10 | GPIO_PIN_11 | GPIO_PIN_14 | GPIO_PIN_15 | GPIO_PIN_3 | GPIO_PIN_4
+			| GPIO_PIN_5 | GPIO_PIN_8 | GPIO_PIN_9;
+	GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	HAL_GPIO_Init (GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : BLUE_Pin ORANGE_Pin */
-  GPIO_InitStruct.Pin = BLUE_Pin|ORANGE_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+	/*Configure GPIO pins : BLUE_Pin ORANGE_Pin */
+	GPIO_InitStruct.Pin = BLUE_Pin | ORANGE_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+	HAL_GPIO_Init (GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PA11 PA12 PA15 */
-  GPIO_InitStruct.Pin = GPIO_PIN_11|GPIO_PIN_12|GPIO_PIN_15;
-  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+	/*Configure GPIO pins : PA11 PA12 PA15 */
+	GPIO_InitStruct.Pin = GPIO_PIN_11 | GPIO_PIN_12 | GPIO_PIN_15;
+	GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	HAL_GPIO_Init (GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : USER1_Pin USER2_Pin */
-  GPIO_InitStruct.Pin = USER1_Pin|USER2_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+	/*Configure GPIO pins : USER1_Pin USER2_Pin */
+	GPIO_InitStruct.Pin = USER1_Pin | USER2_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+	GPIO_InitStruct.Pull = GPIO_PULLUP;
+	HAL_GPIO_Init (GPIOB, &GPIO_InitStruct);
 
-  /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI0_1_IRQn, 1, 0);
-  HAL_NVIC_EnableIRQ(EXTI0_1_IRQn);
+	/* EXTI interrupt init*/
+	HAL_NVIC_SetPriority (EXTI0_1_IRQn, 1, 0);
+	HAL_NVIC_EnableIRQ (EXTI0_1_IRQn);
 
-  HAL_NVIC_SetPriority(EXTI4_15_IRQn, 1, 0);
-  HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);
+	HAL_NVIC_SetPriority (EXTI4_15_IRQn, 1, 0);
+	HAL_NVIC_EnableIRQ (EXTI4_15_IRQn);
 
 }
 
@@ -1191,15 +1246,15 @@ static void MX_GPIO_Init(void)
 /* USER CODE END 4 */
 
 /**
-  * @brief  This function is executed in case of error occurrence.
-  * @retval None
-  */
-void Error_Handler(void)
+ * @brief  This function is executed in case of error occurrence.
+ * @retval None
+ */
+void Error_Handler (void)
 {
-  /* USER CODE BEGIN Error_Handler_Debug */
+	/* USER CODE BEGIN Error_Handler_Debug */
 	/* User can add his own implementation to report the HAL error return state */
-	debugLog("Error!");
-  /* USER CODE END Error_Handler_Debug */
+	debugLog ("Error!");
+	/* USER CODE END Error_Handler_Debug */
 }
 
 #ifdef  USE_FULL_ASSERT

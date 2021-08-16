@@ -26,4 +26,4 @@ sx127x.c:311:6:SX127X_Routine	16	static
 sx127x.c:412:6:SX127X_delayMicro	0	static
 sx127x.c:419:9:SX127X_getRandom	8	static
 sx127x.c:424:6:SX127X_init	16	static
-sx127x.c:435:6:SX127X_readAllRegisters	16	static
+sx127x.c:431:6:SX127X_readAllRegisters	16	static

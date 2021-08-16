@@ -8,5 +8,7 @@ common.c:63:10:HexToInt	24	static
 common.c:109:9:bcdToBin	0	static
 common.c:121:9:binToBcd	16	static
 common.c:134:6:arrayToHexString	16	static
-common.c:148:6:delayMicro	0	static
-common.c:164:9:crc8	16	static
+common.c:148:5:delayMicro	8	static
+common.c:163:9:crc8	16	static
+common.c:181:6:writeToFram	56	static
+common.c:203:6:readFromFram	56	static
