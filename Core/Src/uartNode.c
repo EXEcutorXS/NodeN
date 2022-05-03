@@ -93,11 +93,15 @@ void uartReceiveHandler (nodeSettings_t* settingsPtr)
 			break;
 
 		case UART_CALL:
-			printf ("<ANv%lx>", SOFTWARE_REVISION);
+			printf ("<ANv%lx>\n", SOFTWARE_REVISION);
 			break;
 
 		case UART_STATUS:
 			flag.statusRequested = 1;
+			break;
+
+		case UART_DEBUG:
+			settingsPtr->debugLevel = DecToInt(ptr, l);
 			break;
 
 		default:
@@ -111,15 +115,16 @@ void uartReceiveHandler (nodeSettings_t* settingsPtr)
 
 void sendConfig (nodeSettings_t* settingsPtr)
 {
-	printf ("<1%lu>", settingsPtr->realFrequency);
-	printf ("<2%u>", settingsPtr->sf);
-	printf ("<3%u>", settingsPtr->bw);
-	printf ("<4%X>", settingsPtr->sw);
-	printf ("<5%u>", settingsPtr->power);
-	printf ("<8%u>", settingsPtr->preamble);
-	printf ("<9%u>", settingsPtr->cr);
-	printf ("<n%u>", settingsPtr->nodeNum);
-	printf ("<i%lu>", settingsPtr->workInterval);
+	printf ("<1%lu>\n", settingsPtr->realFrequency);
+	printf ("<2%u>\n", settingsPtr->sf);
+	printf ("<3%u>\n", settingsPtr->bw);
+	printf ("<4%X>\n", settingsPtr->sw);
+	printf ("<5%u>\n", settingsPtr->power);
+	printf ("<8%u>\n", settingsPtr->preamble);
+	printf ("<9%u>\n", settingsPtr->cr);
+	printf ("<n%u>\n", settingsPtr->nodeNum);
+	printf ("<i%lu>\n", settingsPtr->workInterval);
 	printf ("<L%u>\n", settingsPtr->useLed);
+	printf ("<d%u>\n", settingsPtr->debugLevel);
 }
 

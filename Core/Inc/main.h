@@ -34,7 +34,7 @@ extern "C" {
 /* USER CODE BEGIN Includes */
 
 
-#define SOFTWARE_REVISION 0x13082021LU
+#define SOFTWARE_REVISION 0x27112021LU
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -58,8 +58,8 @@ extern "C" {
 #define USE_NTC
 //NTC SETTINGS
 #define BETA 3950.0F
-#define R_BALANCE 4700.0F
-#define R_THERMISTOR_DEFAULT 4700.0F
+#define R_BALANCE 10000.0F
+#define R_THERMISTOR_DEFAULT 10000.0F
 #define HOME_TEMP 298.15F
 
 #define WATCHDOG_INTERVAL 120
@@ -139,5 +139,3 @@ void initUart(UART_HandleTypeDef* huart, DMA_HandleTypeDef* hdma, SX127X_t* myRa
 #endif
 
 #endif /* __MAIN_H */
-
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

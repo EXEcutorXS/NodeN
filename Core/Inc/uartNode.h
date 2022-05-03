@@ -19,6 +19,7 @@
 #define UART_USELED	'L'
 #define UART_TEMP	'T'
 #define UART_STATUS	'?'
+#define UART_DEBUG	'd'
 
 
 
