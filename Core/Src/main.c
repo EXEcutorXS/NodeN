@@ -61,7 +61,7 @@ WWDG_HandleTypeDef hwwdg;
 flag_t flag = { 0, };
 uint8_t lpTimWdCnt = 0;
 
-SX127X_t myRadio;
+SX127X_t myRadio = {0,};
 
 uint16_t recomendedDelay = 600;
 
@@ -558,6 +558,56 @@ void printInfo(nodeStatus_t *status, uint32_t tm, uint32_t miss) {
 	printf("Displayed in : %lu ms\n", HAL_GetTick() - tick);
 #endif
 }
+
+void showErrorCode(int errNum) {
+	for (int i = 0; i < errNum; i++) {
+		HAL_GPIO_WritePin(ORANGE_GPIO_Port, ORANGE_Pin | BLUE_Pin, 1);
+		HAL_Delay(1000);
+		HAL_GPIO_WritePin(ORANGE_GPIO_Port, ORANGE_Pin | BLUE_Pin, 0);
+		HAL_Delay(1000);
+	}
+}
+void startBlink() {
+	for (int i = 0; i < 3; i++) {
+		HAL_GPIO_WritePin(ORANGE_GPIO_Port, ORANGE_Pin | BLUE_Pin, 1);
+		HAL_Delay(200);
+		HAL_GPIO_WritePin(ORANGE_GPIO_Port, ORANGE_Pin | BLUE_Pin, 0);
+		HAL_Delay(200);
+	}
+	HAL_Delay(500);
+}
+
+void showNumber() {
+	for (int i = 0; i < settings.nodeNum / 10; i++) {
+		HAL_GPIO_WritePin(ORANGE_GPIO_Port, ORANGE_Pin, 1);
+		HAL_Delay(1000);
+		HAL_GPIO_WritePin(ORANGE_GPIO_Port, ORANGE_Pin, 0);
+		HAL_Delay(1000);
+	}
+	for (int i = 0; i < settings.nodeNum % 10; i++) {
+		HAL_GPIO_WritePin(BLUE_GPIO_Port, BLUE_Pin, 1);
+		HAL_Delay(800);
+		HAL_GPIO_WritePin(BLUE_GPIO_Port, BLUE_Pin, 0);
+		HAL_Delay(800);
+	}
+}
+
+void HAL_Delay(uint32_t Delay)
+{
+  uint32_t tickstart = HAL_GetTick();
+  uint32_t wait = Delay;
+
+  /* Add a freq to guarantee minimum wait */
+  if (wait < HAL_MAX_DELAY)
+  {
+    wait += (uint32_t)(uwTickFreq);
+  }
+
+  while((HAL_GetTick() - tickstart) < wait)
+  {
+		HAL_WWDG_Refresh(&hwwdg);
+  }
+}
 /* USER CODE END 0 */
 
 /**
@@ -566,8 +616,6 @@ void printInfo(nodeStatus_t *status, uint32_t tm, uint32_t miss) {
  */
 int main(void) {
 	/* USER CODE BEGIN 1 */
-
-
 
 	/* USER CODE END 1 */
 
@@ -596,6 +644,7 @@ int main(void) {
 	MX_ADC_Init();
 	MX_LPTIM1_Init();
 	MX_WWDG_Init();
+
 	/* USER CODE BEGIN 2 */
 
 	initUart(&huart1, &hdma_usart1_rx, &myRadio);
@@ -620,20 +669,49 @@ int main(void) {
 	// PIN MAP: 0-1
 	//Receiving test
 	if (HAL_GPIO_ReadPin(USER2_GPIO_Port, USER2_Pin) == USER2_ACTIVE && HAL_GPIO_ReadPin(USER1_GPIO_Port, USER1_Pin) != USER1_ACTIVE) {
+		debugLog("Receiving test activated");
 		ReceivingTest();
 	}
 	//PIN MAP 1-0
 	//Ping Test
 	if (HAL_GPIO_ReadPin(USER2_GPIO_Port, USER2_Pin) != USER1_ACTIVE && HAL_GPIO_ReadPin(USER1_GPIO_Port, USER1_Pin) == USER1_ACTIVE) {
+		debugLog("Ping test activated");
 		PingTest();
+
 	}
 
 	//PIN MAP 1-1 - Don't sleep
-	if (HAL_GPIO_ReadPin(USER2_GPIO_Port, USER2_Pin) == USER2_ACTIVE && HAL_GPIO_ReadPin(USER1_GPIO_Port, USER1_Pin) == USER1_ACTIVE)
+	if (HAL_GPIO_ReadPin(USER2_GPIO_Port, USER2_Pin) == USER2_ACTIVE && HAL_GPIO_ReadPin(USER1_GPIO_Port, USER1_Pin) == USER1_ACTIVE) {
+		debugLog("Non sleep mode enabled");
 		dontSleep = true;
+	}
+
+	debugLog("Power on, test starting");
+
+	if (myRadio.revision==0) {	//No Radio connection
+		debugLog("LoRa module:ERROR!");
+		showErrorCode(2);
+		while (1)
+			;
+	}
+	debugLogInt("LoRa module: OK, rev: %d", myRadio.revision);
+
+	if ((RCC->CSR & RCC_CSR_LSERDY_Msk) == 0) {	//Crystal failure
+		debugLog("Crystal: fail!");
+		showErrorCode(3);
+		while (1)
+			;
+	}
+	debugLog("Crystal: OK");
+	startBlink();
+	showNumber();
 
 	deinitGpio();
 	flag.rtcAlarm = 1;
+	debugLogInt("Node number: %d ", settings.nodeNum);
+	debugLogInt("Frequency: %lu", settings.realFrequency);
+	debugLogInt("Spreading factor: %d", settings.sf);
+	debugLogInt("BandWidth: %d", settings.bw);
 
 	while (1) {
 		HAL_WWDG_Refresh(&hwwdg);
@@ -666,7 +744,7 @@ int main(void) {
 		}
 
 		if ((status.openedConfirmed != status.opened
-				|| (status.poweredConfirmed != status.powered && HAL_GetTick() - poweredChangeMoment > settings.nodeNum * 1500) || triesToSend > 0
+				|| (status.poweredConfirmed != status.powered && HAL_GetTick() - poweredChangeMoment > settings.nodeNum * 1200) || triesToSend > 0
 				|| status.unconfirmedOpening) && !wfa && !status.disarmed && HAL_GetTick() - myRadio.lastSignalTick > 10 + settings.nodeNum * 20
 				&& myRadio.status != TX) {
 			if (status.opened)
@@ -754,7 +832,7 @@ int main(void) {
 
 				if (rxMes->uplink == 0) {
 					debugLogInt("It's for %d", rxMes->adr);
-					debugLogInt("Delay for him: %d", rxMes->codedDelayLSB + (rxMes->codedDelayMSB << 8));
+					debugLogInt("Delay for it: %d", rxMes->codedDelayLSB + (rxMes->codedDelayMSB << 8));
 				} else {
 					debugLogInt("It's from %d", rxMes->adr);
 				}
