@@ -26,6 +26,7 @@
 void readByte();
 void uartInit();
 void uartReceiveHandler();
-void sendConfig(nodeSettings_t* settingsPtr);
-void uartReceiveHandler (nodeSettings_t* settingsPtr);
+void checkUart();
+void sendConfig();
+void handleMessage(uint8_t i);
 #endif

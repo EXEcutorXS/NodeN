@@ -34,7 +34,7 @@ extern "C" {
 /* USER CODE BEGIN Includes */
 
 
-#define SOFTWARE_REVISION 0x27112021LU
+#define SOFTWARE_REVISION 0x11072022LU
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -51,7 +51,7 @@ extern "C" {
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
 #define VREF_CAL_VALUE  (*(uint16_t*) 0x1FF80078)
-
+#define UART_BUFFER_SIZE 256
 #define FLASH_EEPROM_BASE 0x8080000
 #define MAX_RETRIES 7
 
@@ -69,6 +69,8 @@ extern "C" {
 
 #define USER1_ACTIVE 0
 #define USER2_ACTIVE 0
+
+
 
 typedef struct
 {
@@ -104,7 +106,7 @@ void deinitPorts();
 void deinitAlarmInput ();
 void deinitPowerInput ();
 void sleep();
-void initUart(UART_HandleTypeDef* huart, DMA_HandleTypeDef* hdma, SX127X_t* myRadioHandler);
+void initUart(UART_HandleTypeDef* huart, SX127X_t* myRadioHandler);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/

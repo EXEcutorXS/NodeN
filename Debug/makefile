@@ -1,6 +1,6 @@
 ################################################################################
 # Automatically-generated file. Do not edit!
-# Toolchain: GNU Tools for STM32 (9-2020-q2-update)
+# Toolchain: GNU Tools for STM32 (10.3-2021.10)
 ################################################################################
 
 -include ../makefile.init
@@ -43,6 +43,9 @@ BUILD_ARTIFACT := $(BUILD_ARTIFACT_PREFIX)$(BUILD_ARTIFACT_NAME)$(if $(BUILD_ART
 EXECUTABLES += \
 NodeN.elf \
 
+MAP_FILES += \
+NodeN.map \
+
 SIZE_OUTPUT += \
 default.size.stdout \
 
@@ -52,9 +55,6 @@ NodeN.list \
 OBJCOPY_HEX += \
 NodeN.hex \
 
-OBJCOPY_BIN += \
-NodeN.bin \
-
 
 # All Target
 all: main-build
@@ -63,7 +63,7 @@ all: main-build
 main-build: NodeN.elf secondary-outputs
 
 # Tool invocations
-NodeN.elf: $(OBJS) $(USER_OBJS) C:\workspace\NodeN\STM32L051C8TX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+NodeN.elf NodeN.map: $(OBJS) $(USER_OBJS) C:\workspace\NodeN\STM32L051C8TX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
 	arm-none-eabi-gcc -o "NodeN.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m0plus -T"C:\workspace\NodeN\STM32L051C8TX_FLASH.ld" --specs=nosys.specs -Wl,-Map="NodeN.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
@@ -83,17 +83,12 @@ NodeN.hex: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
 	@echo 'Finished building: $@'
 	@echo ' '
 
-NodeN.bin: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-objcopy  -O binary $(EXECUTABLES) "NodeN.bin"
-	@echo 'Finished building: $@'
-	@echo ' '
-
 # Other Targets
 clean:
-	-$(RM) NodeN.bin NodeN.elf NodeN.hex NodeN.list default.size.stdout
+	-$(RM) NodeN.elf NodeN.hex NodeN.list NodeN.map default.size.stdout
 	-@echo ' '
 
-secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST) $(OBJCOPY_HEX) $(OBJCOPY_BIN)
+secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST) $(OBJCOPY_HEX)
 
 fail-specified-linker-script-missing:
 	@echo 'Error: Cannot find the specified linker script. Check the linker settings in the build configuration.'
