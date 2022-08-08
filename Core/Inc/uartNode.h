@@ -26,7 +26,8 @@
 void readByte();
 void uartInit();
 void uartReceiveHandler();
-void checkUart();
+void uartHandler();
 void sendConfig();
 void handleMessage(uint8_t i);
+void uartReinit();
 #endif

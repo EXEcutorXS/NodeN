@@ -55,6 +55,7 @@ extern "C" {
 #define FLASH_EEPROM_BASE 0x8080000
 #define MAX_RETRIES 7
 
+
 #define USE_NTC
 //NTC SETTINGS
 #define BETA 3950.0F
@@ -62,7 +63,7 @@ extern "C" {
 #define R_THERMISTOR_DEFAULT 10000.0F
 #define HOME_TEMP 298.15F
 
-#define WATCHDOG_INTERVAL 120
+#define WATCHDOG_INTERVAL 60
 
 #define LED_ON 1
 #define LED_OFF 0
@@ -81,10 +82,13 @@ uint32_t uartRx:1;
 uint32_t saveSettings:1;
 uint32_t readConfig:1;
 uint32_t voltage:1;
-uint32_t alarmDelay:1;
 uint32_t beacon:1;
 uint32_t reqCrc:1;
 uint32_t statusRequested:1;
+uint32_t needToSend:1;
+uint32_t lpTimerInterupt:1;
+uint32_t uartReset:1;
+uint32_t sleep:1;
 }flag_t;
 /* USER CODE END ET */
 
@@ -106,7 +110,17 @@ void deinitPorts();
 void deinitAlarmInput ();
 void deinitPowerInput ();
 void sleep();
-void initUart(UART_HandleTypeDef* huart, SX127X_t* myRadioHandler);
+void initUart();
+void sleepHandler();
+
+void debugLogTime(char *string);
+void debugLog(char *string);
+void debugLogInt(char *format, int n);
+void debugLogString(char *format, const char *string);
+
+void changeSequence(nodeSequence_t s);
+void ReceivingTest();
+void PingTest();
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/

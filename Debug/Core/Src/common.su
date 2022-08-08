@@ -12,3 +12,4 @@ C:/workspace/common/common.c:148:5:delayMicro	24	static
 C:/workspace/common/common.c:163:9:crc8	32	static
 C:/workspace/common/common.c:181:6:writeToFram	64	static
 C:/workspace/common/common.c:203:6:readFromFram	64	static
+C:/workspace/common/common.c:219:10:min	16	static
